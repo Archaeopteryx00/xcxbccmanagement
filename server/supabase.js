@@ -1,8 +1,14 @@
 // server/supabase.js
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Polyfill WebSocket for Node.js < 22 environments where native WebSocket is undefined
+if (typeof globalThis.WebSocket === 'undefined') {
+    globalThis.WebSocket = WebSocket;
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -29,6 +35,9 @@ export function getSupabase(req) {
             auth: {
                 persistSession: false,
                 autoRefreshToken: false
+            },
+            realtime: {
+                transport: WebSocket
             }
         });
     }
@@ -37,6 +46,9 @@ export function getSupabase(req) {
     return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
             persistSession: false
+        },
+        realtime: {
+            transport: WebSocket
         }
     });
 }
