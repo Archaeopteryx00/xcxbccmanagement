@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.key
+
+# Supabase CLI temp files
+.temp/
+supabase/.temp/
+
+# User JSON Backups (protecting private user data)
+backup/
+backups/
+
+# System / logs
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
