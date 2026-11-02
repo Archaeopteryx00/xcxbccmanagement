@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>XCX BBC Management v1.6</title>
+    <title>XCX BBC Management v1.7</title>
     
     <!-- PWA & Mobile Meta Tags -->
     <meta name="theme-color" content="#111111">
@@ -55,9 +55,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- PapaParse for CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- XCX BBC Microservice & Supabase Bridge -->
-    <script src="services/apiService.js"></script>
-    <script src="services/appBridge.js"></script>
     
     <style>
         body {
@@ -130,7 +127,7 @@
                 <div class="w-7 h-7 bg-brand-900 text-white rounded-md flex items-center justify-center font-bold text-xs">X</div>
                 <div>
                     <h1 class="font-bold text-xs leading-none tracking-tight">XCX BBC</h1>
-                    <span class="text-[10px] text-neutral-400 font-medium">v1.6 Account Lifecycle</span>
+                    <span class="text-[10px] text-neutral-400 font-medium">v1.7 Simplified Transactions</span>
                 </div>
             </div>
 
@@ -152,14 +149,6 @@
                         <button onclick="switchTab('bbcoin-overview')" id="nav-bbcoin-overview" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
                             <i data-lucide="coins" class="w-3.5 h-3.5"></i>
                             <span>Currency Overview</span>
-                        </button>
-                        <button onclick="switchTab('vc-management')" id="nav-vc-management" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
-                            <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                            <span>VC Balance</span>
-                        </button>
-                        <button onclick="switchTab('vc-transactions')" id="nav-vc-transactions" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
-                            <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
-                            <span>VC History</span>
                         </button>
                         <button onclick="switchTab('calculator')" id="nav-calculator" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
                             <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
@@ -282,7 +271,7 @@
                 </div>
 
                 <!-- KPI Bar 1: Monthly Earned Metrics (Selected Month) -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">DM Earned</span>
                         <div class="text-base font-bold text-neutral-900" id="kpi-month-dm">0</div>
@@ -295,24 +284,6 @@
                         <div class="text-[9px] text-neutral-400 mt-0.5">1 DM = 1 BBC</div>
                     </div>
 
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Earned</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-vc-earned">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Update + Quest Rewards</div>
-                    </div>
-
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Spent</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-vc-spent">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Converted to 💎</div>
-                    </div>
-
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Diamond Converted</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-diamonds">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">1 VC = 1 💎</div>
-                    </div>
-
                     <div class="bg-surface p-3.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-300 block mb-1">Est. 💎 (Month)</span>
                         <div class="text-base font-bold text-white" id="kpi-month-est-diamonds">0</div>
@@ -321,7 +292,7 @@
                 </div>
 
                 <!-- Balance Cards: Monthly Earnings / Lifetime Earnings / Current Balance -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">DM Balance</span>
                         <div class="space-y-1.5 text-[11px]">
@@ -339,19 +310,10 @@
                             <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Current Balance</span><span class="font-bold text-neutral-900" id="bal-bb-current">0 BBC</span></div>
                         </div>
                     </div>
-
-                    <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">Vanguard Coin Balance</span>
-                        <div class="space-y-1.5 text-[11px]">
-                            <div class="flex justify-between"><span class="text-neutral-500">Monthly Earnings</span><span class="font-bold text-neutral-900" id="bal-vc-monthly">0 VC</span></div>
-                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Earnings</span><span class="font-bold text-neutral-900" id="bal-vc-lifetime">0 VC</span></div>
-                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Current Balance (Carryover)</span><span class="font-bold text-neutral-900" id="bal-vc-current">0 VC</span></div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Lifetime / Status KPIs -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Bonus Available</span>
                         <div class="text-base font-bold text-neutral-900" id="kpi-bonus-available">0 Acc</div>
@@ -369,26 +331,19 @@
                         <div class="text-base font-bold text-neutral-900" id="kpi-total-bbcoin">0</div>
                         <div class="text-[9px] text-neutral-400 mt-0.5">5 DM = 1 💎</div>
                     </div>
-
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Lifetime VC Balance</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-current-vc">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Carries over monthly</div>
-                    </div>
                 </div>
 
                 <!-- Combined Diamond Target Progress -->
                 <div class="bg-surface p-5 rounded-xl border border-muted shadow-sm">
                     <div class="flex justify-between items-center mb-3">
                         <div>
-                            <h3 class="font-bold text-xs text-neutral-900">Combined Main Diamond Goal Target</h3>
-                            <p class="text-[11px] text-neutral-500">Lifetime Accumulated Diamonds from BBCoin (5:1) + Vanguard Coin (1:1)</p>
+                            <h3 class="font-bold text-xs text-neutral-900">Main Diamond Goal Target</h3>
+                            <p class="text-[11px] text-neutral-500">Lifetime Accumulated Diamonds from BBCoin (5:1)</p>
                         </div>
                         <span id="target-percentage" class="text-xs font-bold bg-neutral-900 text-white px-2.5 py-1 rounded-md">0%</span>
                     </div>
                     <div class="w-full bg-neutral-100 rounded-full h-2.5 overflow-hidden flex border border-neutral-200">
                         <div id="target-progress-bbcoin" class="bg-neutral-900 h-2.5 transition-all duration-500" style="width: 0%" title="From BBCoin"></div>
-                        <div id="target-progress-vc" class="bg-neutral-400 h-2.5 transition-all duration-500" style="width: 0%" title="From VC"></div>
                     </div>
                     <div class="flex justify-between text-[11px] text-neutral-500 mt-2">
                         <span id="target-current-text">0 Diamonds</span>
@@ -490,112 +445,6 @@
                 </div>
             </section>
 
-            <!-- VIEW: VANGUARD COIN (VC) MANAGEMENT -->
-            <section id="view-vc-management" class="space-y-6 hidden">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="text-sm font-bold text-neutral-900">Vanguard Coin (VC) Management</h3>
-                        <p class="text-[11px] text-neutral-500">Kelola perolehan VC dari Update, Quest, dan konversi Diamond utama</p>
-                    </div>
-                    <button onclick="openVcTransactionModal()" class="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
-                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Record VC Transaction
-                    </button>
-                </div>
-
-                <!-- VC Summary Cards -->
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <div class="text-[10px] font-semibold text-neutral-400 mb-1 uppercase tracking-wider">VC Earned This Month</div>
-                        <div class="text-xl font-bold text-neutral-900" id="vc-summary-monthly-earned">0 VC</div>
-                        <div class="text-[10px] text-neutral-400 mt-1" id="vc-summary-monthly-label">-</div>
-                    </div>
-                    <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <div class="text-[10px] font-semibold text-neutral-400 mb-1 uppercase tracking-wider">Total VC Earned</div>
-                        <div class="text-xl font-bold text-neutral-900" id="vc-summary-earned">0 VC</div>
-                        <div class="text-[10px] text-neutral-400 mt-1">Lifetime rewards</div>
-                    </div>
-                    <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <div class="text-[10px] font-semibold text-neutral-400 mb-1 uppercase tracking-wider">Total VC Spent</div>
-                        <div class="text-xl font-bold text-neutral-900" id="vc-summary-spent">0 VC</div>
-                        <div class="text-[10px] text-neutral-400 mt-1">Converted to Diamonds</div>
-                    </div>
-                    <div class="bg-surface p-4 rounded-xl border border-neutral-900 shadow-sm">
-                        <div class="text-[10px] font-semibold text-neutral-500 mb-1 uppercase tracking-wider">Current VC Balance</div>
-                        <div class="text-xl font-bold text-neutral-900" id="vc-summary-balance">0 VC</div>
-                        <div class="text-[10px] text-neutral-500 mt-1">Carries over to next month</div>
-                    </div>
-                    <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <div class="text-[10px] font-semibold text-neutral-400 mb-1 uppercase tracking-wider">Est. Diamond Output</div>
-                        <div class="text-xl font-bold text-neutral-900" id="vc-summary-diamonds">0 💎</div>
-                        <div class="text-[10px] text-neutral-400 mt-1">1 VC = 1 Diamond</div>
-                    </div>
-                </div>
-
-                <!-- Quick Action VC Reward Form -->
-                <div class="bg-surface p-5 rounded-xl border border-muted shadow-sm space-y-3">
-                    <h4 class="font-bold text-xs text-neutral-900 border-b border-muted pb-2.5">Quick VC Reward Actions</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="p-3.5 border border-muted rounded-xl hover:border-neutral-900 transition-all">
-                            <h5 class="font-bold text-xs text-neutral-900 mb-1">Standard Update Reward</h5>
-                            <p class="text-[10px] text-neutral-500 mb-3">Claim default 100 VC reward for completing update.</p>
-                            <button onclick="quickClaimUpdateVc()" class="w-full bg-neutral-900 text-white py-1.5 rounded-lg text-xs font-semibold hover:bg-neutral-800">Claim +100 VC (Update)</button>
-                        </div>
-                        <div class="p-3.5 border border-muted rounded-xl hover:border-neutral-900 transition-all">
-                            <h5 class="font-bold text-xs text-neutral-900 mb-1">Quest Reward Entry</h5>
-                            <p class="text-[10px] text-neutral-500 mb-3">Input custom reward earned from completing quests.</p>
-                            <button onclick="openVcTransactionModal('Quest Reward')" class="w-full border border-neutral-900 text-neutral-900 py-1.5 rounded-lg text-xs font-semibold hover:bg-neutral-100">Add Quest Reward</button>
-                        </div>
-                        <div class="p-3.5 border border-muted rounded-xl hover:border-neutral-900 transition-all">
-                            <h5 class="font-bold text-xs text-neutral-900 mb-1">Convert VC to Diamonds</h5>
-                            <p class="text-[10px] text-neutral-500 mb-3">Deduct VC balance to claim main diamonds (1:1).</p>
-                            <button onclick="openVcTransactionModal('Diamond Conversion')" class="w-full border border-neutral-900 bg-neutral-900 text-white py-1.5 rounded-lg text-xs font-semibold hover:bg-neutral-800">Convert VC to 💎</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW: VC TRANSACTIONS HISTORY -->
-            <section id="view-vc-transactions" class="space-y-6 hidden">
-                <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div>
-                        <h3 class="text-sm font-bold text-neutral-900">Vanguard Coin (VC) Transaction History</h3>
-                        <p class="text-[11px] text-neutral-500">Tabel riwayat pergerakan saldo VC (vc_transactions.csv) — riwayat histori tidak pernah dihapus oleh filter bulanan</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="calendar" class="w-4 h-4 text-neutral-500"></i>
-                        <select id="vc-history-month-filter" onchange="vcHistoryMonthFilter = this.value; renderVcTransactionsTable();" class="py-1.5 px-2 border border-muted rounded-lg text-xs bg-surface font-semibold focus:outline-none focus:border-neutral-900">
-                            <option value="ALL">All Months</option>
-                        </select>
-                        <button onclick="exportCSV('vc_transactions')" class="border border-muted hover:bg-neutral-100 text-neutral-800 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Export VC CSV
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-surface rounded-xl border border-muted shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-neutral-50 border-b border-muted uppercase font-semibold text-neutral-400 text-[10px]">
-                                <tr>
-                                    <th class="px-4 py-2.5">Tx ID</th>
-                                    <th class="px-4 py-2.5">Date</th>
-                                    <th class="px-4 py-2.5">Source / Type</th>
-                                    <th class="px-4 py-2.5">Account</th>
-                                    <th class="px-4 py-2.5">Description</th>
-                                    <th class="px-4 py-2.5 text-right">VC Earned</th>
-                                    <th class="px-4 py-2.5 text-right">VC Spent</th>
-                                    <th class="px-4 py-2.5 text-right">Balance</th>
-                                    <th class="px-4 py-2.5">Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vc-table-body" class="divide-y divide-muted text-neutral-800 font-mono text-[10px]">
-                                <!-- Dynamic -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
             <!-- VIEW: BRANCHES MANAGEMENT -->
             <section id="view-branches" class="space-y-6 hidden">
                 <div class="flex justify-between items-center">
@@ -680,8 +529,6 @@
                                     <th class="px-3.5 py-2.5">Server Code</th>
                                     <th class="px-3.5 py-2.5">Level</th>
                                     <th class="px-3.5 py-2.5">Farming Status</th>
-                                    <th class="px-3.5 py-2.5 text-right">Total DM</th>
-                                    <th class="px-3.5 py-2.5 text-right">Total VC</th>
                                     <th class="px-3.5 py-2.5 text-center">Double Bonus</th>
                                     <th class="px-3.5 py-2.5 text-right">Est. Diamonds</th>
                                     <th class="px-3.5 py-2.5 text-right">Actions</th>
@@ -801,7 +648,7 @@
                 <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h3 class="font-bold text-xs text-neutral-900">Monthly Report</h3>
-                        <p class="text-[11px] text-neutral-500">Pilih bulan untuk melihat perolehan bulanan, bandingkan performa antar bulan, dan lihat konversi diamond. Tracking bulanan dimulai 1 November 2026.</p>
+                        <p class="text-[11px] text-neutral-500">Pilih bulan untuk melihat perolehan bulanan dan bandingkan performa antar bulan. Tracking bulanan dimulai 1 November 2026.</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <i data-lucide="calendar" class="w-4 h-4 text-neutral-500"></i>
@@ -813,7 +660,7 @@
                 </div>
 
                 <!-- Selected Month Earnings -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">DM Earned</span>
                         <div class="text-base font-bold text-neutral-900" id="report-dm-earned">0</div>
@@ -824,20 +671,10 @@
                         <div class="text-base font-bold text-neutral-900" id="report-bbcoin-earned">0</div>
                         <div class="text-[9px] text-neutral-400 mt-0.5">1 DM = 1 BBC</div>
                     </div>
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Earned</span>
-                        <div class="text-base font-bold text-neutral-900" id="report-vc-earned">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5" id="report-vc-breakdown">Update: 0 / Quest: 0</div>
-                    </div>
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Spent</span>
-                        <div class="text-base font-bold text-neutral-900" id="report-vc-spent">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Deducted from balance</div>
-                    </div>
                     <div class="bg-surface p-3.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-300 block mb-1">Diamonds Converted</span>
-                        <div class="text-base font-bold text-white" id="report-diamonds-converted">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">1 VC = 1 💎</div>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-300 block mb-1">Est. 💎 (Month)</span>
+                        <div class="text-base font-bold text-white" id="report-est-diamonds">0</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5">5 DM = 1 💎</div>
                     </div>
                 </div>
 
@@ -845,7 +682,7 @@
                 <div class="bg-surface rounded-xl border border-muted shadow-sm overflow-hidden">
                     <div class="p-3.5 border-b border-muted bg-neutral-50">
                         <h4 class="font-bold text-xs text-neutral-900">Monthly Performance Comparison</h4>
-                        <p class="text-[10px] text-neutral-500">Perbandingan akumulasi DM, BBCoin, VC, dan konversi diamond per bulan</p>
+                        <p class="text-[10px] text-neutral-500">Perbandingan akumulasi DM dan BBCoin per bulan</p>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
@@ -854,40 +691,10 @@
                                     <th class="px-4 py-2.5">Month</th>
                                     <th class="px-4 py-2.5 text-right">DM Earned</th>
                                     <th class="px-4 py-2.5 text-right">BBCoin Earned</th>
-                                    <th class="px-4 py-2.5 text-right">VC Earned</th>
-                                    <th class="px-4 py-2.5 text-right">VC Spent</th>
-                                    <th class="px-4 py-2.5 text-right">Diamonds Converted</th>
                                     <th class="px-4 py-2.5 text-right">Est. 💎 (Month)</th>
-                                    <th class="px-4 py-2.5 text-right">VC Balance (End of Month)</th>
                                 </tr>
                             </thead>
                             <tbody id="monthly-comparison-body" class="divide-y divide-muted text-neutral-800 text-[11px]">
-                                <!-- Dynamic -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Diamond Conversions Detail -->
-                <div class="bg-surface rounded-xl border border-muted shadow-sm overflow-hidden">
-                    <div class="p-3.5 border-b border-muted bg-neutral-50">
-                        <h4 class="font-bold text-xs text-neutral-900" id="conversion-month-title">Diamond Conversions</h4>
-                        <p class="text-[10px] text-neutral-500">Riwayat konversi VC ke Diamond pada bulan terpilih</p>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-neutral-50 border-b border-muted uppercase font-semibold text-neutral-400 text-[10px]">
-                                <tr>
-                                    <th class="px-4 py-2.5">Tx ID</th>
-                                    <th class="px-4 py-2.5">Date</th>
-                                    <th class="px-4 py-2.5">Account</th>
-                                    <th class="px-4 py-2.5">Source</th>
-                                    <th class="px-4 py-2.5 text-right">VC Converted</th>
-                                    <th class="px-4 py-2.5 text-right">Diamonds Received</th>
-                                    <th class="px-4 py-2.5">Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody id="conversion-table-body" class="divide-y divide-muted text-neutral-800 font-mono text-[10px]">
                                 <!-- Dynamic -->
                             </tbody>
                         </table>
@@ -899,7 +706,7 @@
             <section id="view-calculator" class="space-y-6 hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-surface p-5 rounded-xl border border-muted shadow-sm space-y-3">
-                        <h3 class="font-bold text-xs text-neutral-900 border-b border-muted pb-2.5">Dual Currency Breakdown</h3>
+                        <h3 class="font-bold text-xs text-neutral-900 border-b border-muted pb-2.5">Currency Breakdown</h3>
                         
                         <div class="overflow-x-auto">
                             <table class="w-full text-left text-xs">
@@ -916,13 +723,7 @@
                                         <td class="p-2 font-bold text-neutral-900">BBCoin</td>
                                         <td class="p-2" id="calc-bb-balance">0</td>
                                         <td class="p-2 text-neutral-500" id="calc-bb-ratio">5:1</td>
-                                        <td class="p-2 text-right font-bold" id="calc-bb-diamond">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="p-2 font-bold text-neutral-900">Vanguard Coin (VC)</td>
-                                        <td class="p-2" id="calc-vc-balance">0</td>
-                                        <td class="p-2 text-neutral-500" id="calc-vc-ratio">1:1</td>
-                                        <td class="p-2 text-right font-bold text-neutral-900" id="calc-vc-diamond">0</td>
+                                        <td class="p-2 text-right font-bold text-neutral-900" id="calc-bb-diamond">0</td>
                                     </tr>
                                     <tr class="bg-neutral-900 text-white font-bold">
                                         <td class="p-2">Total Output</td>
@@ -936,11 +737,11 @@
 
                     <div class="lg:col-span-2 bg-surface p-5 rounded-xl border border-muted shadow-sm space-y-4">
                         <div>
-                            <h3 class="font-bold text-xs text-neutral-900">Future Update Simulator (BBCoin + VC)</h3>
-                            <p class="text-[10px] text-neutral-500">Simulasikan potensi hasil akumulasi diamond dari kedua currency</p>
+                            <h3 class="font-bold text-xs text-neutral-900">Future Update Simulator (BBCoin)</h3>
+                            <p class="text-[10px] text-neutral-500">Simulasikan potensi hasil akumulasi diamond dari BBCoin</p>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                             <div>
                                 <label class="block text-neutral-600 mb-1 font-medium text-[11px]">Eligible Accounts (BBCoin)</label>
                                 <input type="number" id="sim-accounts" value="25" oninput="calculateSimulation()" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
@@ -953,26 +754,18 @@
                                 <label class="block text-neutral-600 mb-1 font-medium text-[11px]">Number of Upcoming Updates</label>
                                 <input type="number" id="sim-periods" value="3" min="1" oninput="calculateSimulation()" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
                             </div>
-                            <div>
-                                <label class="block text-neutral-600 mb-1 font-medium text-[11px]">Expected Quests VC Reward Total</label>
-                                <input type="number" id="sim-vc-quests" value="150" min="0" oninput="calculateSimulation()" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
-                            </div>
                         </div>
 
                         <div class="bg-neutral-900 text-white p-4 rounded-xl space-y-3">
-                            <span class="text-[10px] uppercase font-semibold text-neutral-400 tracking-wider">Combined Simulation Output</span>
-                            <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="bg-neutral-800 p-2 rounded-lg">
+                            <span class="text-[10px] uppercase font-semibold text-neutral-400 tracking-wider">Simulation Output</span>
+                            <div class="grid grid-cols-2 gap-3 text-center">
+                                <div class="bg-neutral-800 p-2.5 rounded-lg">
                                     <div class="text-[10px] text-neutral-400">BBC Diamonds</div>
-                                    <div class="font-bold text-xs" id="sim-out-bbc-diamond">0 💎</div>
+                                    <div class="font-bold text-sm text-neutral-200" id="sim-out-bbc-diamond">0 💎</div>
                                 </div>
-                                <div class="bg-neutral-800 p-2 rounded-lg">
-                                    <div class="text-[10px] text-neutral-400">VC Diamonds</div>
-                                    <div class="font-bold text-xs text-neutral-200" id="sim-out-vc-diamond">0 💎</div>
-                                </div>
-                                <div class="bg-neutral-800 p-2 rounded-lg border border-neutral-500">
-                                    <div class="text-[10px] text-neutral-400">Combined Total</div>
-                                    <div class="font-bold text-xs text-white" id="sim-out-combined-diamonds">0 💎</div>
+                                <div class="bg-neutral-800 p-2.5 rounded-lg border border-neutral-500">
+                                    <div class="text-[10px] text-neutral-400">Total Diamonds</div>
+                                    <div class="font-bold text-sm text-white" id="sim-out-combined-diamonds">0 💎</div>
                                 </div>
                             </div>
                         </div>
@@ -1018,10 +811,6 @@
                                 <span>Export Claims (claims.csv)</span>
                                 <i data-lucide="file-text" class="w-3.5 h-3.5 text-neutral-400"></i>
                             </button>
-                            <button onclick="exportCSV('vc_transactions')" class="w-full border border-neutral-900 hover:bg-neutral-100 py-1.5 px-3 rounded-lg text-xs font-semibold text-neutral-900 flex justify-between items-center">
-                                <span>Export VC Transactions (vc_transactions.csv)</span>
-                                <i data-lucide="shield" class="w-3.5 h-3.5 text-neutral-800"></i>
-                            </button>
                             <button onclick="exportAllCSV()" class="w-full bg-brand-900 text-white hover:bg-neutral-800 py-2 px-3 rounded-lg text-xs font-bold flex justify-center items-center gap-2 mt-3">
                                 <i data-lucide="archive" class="w-3.5 h-3.5"></i> Export All Tables
                             </button>
@@ -1046,7 +835,6 @@
                                     <option value="account_sources">Account Sources (account_sources.csv)</option>
                                     <option value="account_topups">Account Topups (account_topups.csv)</option>
                                     <option value="branches">Branches (branches.csv)</option>
-                                    <option value="vc_transactions">VC Transactions (vc_transactions.csv)</option>
                                 </select>
                             </div>
 
@@ -1163,20 +951,10 @@
                         </div>
 
                         <div class="p-3.5 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2.5">
-                            <span class="block font-bold text-[10px] text-neutral-900 uppercase tracking-wider">Currency Conversion Ratios & Rewards</span>
-                            <div class="grid grid-cols-3 gap-2.5">
-                                <div>
-                                    <label class="block font-medium text-neutral-800 mb-1 text-[10px]">Update VC Reward</label>
-                                    <input type="number" id="setting-update-vc-reward" class="w-full p-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
-                                </div>
-                                <div>
-                                    <label class="block font-medium text-neutral-800 mb-1 text-[10px]">BBC Ratio (BBC : 1 💎)</label>
-                                    <input type="number" step="0.1" id="setting-bbc-diamond-rate" class="w-full p-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
-                                </div>
-                                <div>
-                                    <label class="block font-medium text-neutral-800 mb-1 text-[10px]">VC Ratio (VC : 1 💎)</label>
-                                    <input type="number" step="0.1" id="setting-vc-diamond-rate" class="w-full p-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
-                                </div>
+                            <span class="block font-bold text-[10px] text-neutral-900 uppercase tracking-wider">Currency Conversion Ratio</span>
+                            <div>
+                                <label class="block font-medium text-neutral-800 mb-1 text-[10px]">BBC Ratio (BBC : 1 💎)</label>
+                                <input type="number" step="0.1" id="setting-bbc-diamond-rate" class="w-full p-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
                             </div>
                         </div>
 
@@ -1269,18 +1047,7 @@
                                     <td class="px-4 py-2 text-neutral-900">Total DM Received</td>
                                     <td class="px-4 py-2 text-right text-neutral-900" id="sum-total-dm">0 DM</td>
                                 </tr>
-                                <tr>
-                                    <td class="px-4 py-2 text-neutral-600">VC Rewards Earned</td>
-                                    <td class="px-4 py-2 text-right font-bold text-neutral-900" id="sum-vc-earned">0 VC</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-2 text-neutral-600">VC Spent / Converted</td>
-                                    <td class="px-4 py-2 text-right font-bold text-neutral-900" id="sum-vc-spent">0 VC</td>
-                                </tr>
-                                <tr class="bg-neutral-50 font-bold">
-                                    <td class="px-4 py-2 text-neutral-900">VC Balance</td>
-                                    <td class="px-4 py-2 text-right text-neutral-900" id="sum-vc-balance">0 VC</td>
-                                </tr>
+
                             </tbody>
                         </table>
                     </div>
@@ -1461,18 +1228,29 @@
 
                 <div>
                     <label class="block font-medium text-neutral-700 mb-1">Source Type</label>
-                    <select id="source-type" required class="w-full p-2 border border-muted rounded-lg bg-surface font-semibold text-xs focus:outline-none focus:border-neutral-900">
+                    <select id="source-type" onchange="onSourceTypeChange()" required class="w-full p-2 border border-muted rounded-lg bg-surface font-semibold text-xs focus:outline-none focus:border-neutral-900">
                         <option value="DM">DM (Gift / Activity)</option>
-                        <option value="Top-up">Top-up (Direct Purchase)</option>
-                        <option value="Top-up Bonus">Top-up Double Bonus</option>
-                        <option value="Vanguard Coin">Vanguard Coin (Reward)</option>
+                        <option value="Top-up">Top-up</option>
                         <option value="Other">Other Source</option>
                     </select>
                 </div>
 
+                <div id="source-double-bonus-wrap" class="hidden p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg">
+                    <label class="flex items-center gap-2 cursor-pointer font-bold text-neutral-900 text-xs">
+                        <input type="checkbox" id="source-double-bonus" class="rounded border-muted w-4 h-4 text-neutral-900 focus:ring-0">
+                        <span>Double Bonus (x2)</span>
+                    </label>
+                    <span class="text-[10px] text-neutral-500 block mt-1">Otomatis memberikan bonus 100% nominal (Total diterima: nominal x 2).</span>
+                </div>
+
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Transaction Date</label>
+                    <input type="date" id="source-date" required class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900 text-xs">
+                </div>
+
                 <div>
                     <label class="block font-medium text-neutral-700 mb-1">Nominal</label>
-                    <input type="number" id="source-nominal" required min="0" value="100" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900">
+                    <input type="number" id="source-nominal" required min="1" value="100" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900 font-bold">
                 </div>
 
                 <div>
@@ -1482,7 +1260,7 @@
 
                 <div class="pt-2 flex justify-end gap-2">
                     <button type="button" onclick="closeModal('modal-add-source')" class="px-3.5 py-1.5 border border-muted rounded-lg text-neutral-600">Cancel</button>
-                    <button type="submit" class="px-3.5 py-1.5 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800">Save Source Record</button>
+                    <button type="submit" id="btn-save-source" class="px-3.5 py-1.5 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 disabled:opacity-50">Save Source Record</button>
                 </div>
             </form>
         </div>
@@ -1704,65 +1482,6 @@
         </div>
     </div>
 
-    <!-- VC Transaction Modal -->
-    <div id="modal-vc-tx" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-surface rounded-xl border border-muted shadow-lg w-full max-w-md overflow-hidden">
-            <div class="px-5 py-3.5 border-b border-muted flex justify-between items-center bg-neutral-50">
-                <h3 class="font-bold text-xs text-neutral-900">Record Vanguard Coin (VC) Transaction</h3>
-                <button onclick="closeModal('modal-vc-tx')" class="text-neutral-400 hover:text-neutral-700"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <form id="form-vc-tx" onsubmit="handleSaveVcTx(event)" class="p-5 space-y-3.5 text-xs">
-                <div>
-                    <label class="block font-medium text-neutral-700 mb-1">Transaction Type / Source</label>
-                    <select id="vc-tx-source" onchange="updateVcTxFields()" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
-                        <option value="Update Reward">Update Reward (+VC)</option>
-                        <option value="Quest Reward">Quest Reward (+VC)</option>
-                        <option value="Diamond Conversion">Diamond Conversion (-VC)</option>
-                        <option value="Manual Adjustment">Manual Adjustment (+/- VC)</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block font-medium text-neutral-700 mb-1">Related Account (Optional)</label>
-                    <select id="vc-tx-account" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
-                        <option value="">Global — All Accounts</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block font-medium text-neutral-700 mb-1">Transaction Date</label>
-                    <input type="date" id="vc-tx-date" required class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900">
-                </div>
-
-                <div>
-                    <label class="block font-medium text-neutral-700 mb-1">Description</label>
-                    <input type="text" id="vc-tx-desc" required placeholder="e.g. October Update Reward" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-medium text-neutral-700 mb-1">VC Earned (+)</label>
-                        <input type="number" id="vc-tx-earned" value="100" min="0" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900">
-                    </div>
-                    <div>
-                        <label class="block font-medium text-neutral-700 mb-1">VC Spent (-)</label>
-                        <input type="number" id="vc-tx-spent" value="0" min="0" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-medium text-neutral-700 mb-1">Notes</label>
-                    <textarea id="vc-tx-notes" rows="2" class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900"></textarea>
-                </div>
-
-                <div class="pt-2 flex justify-end gap-2">
-                    <button type="button" onclick="closeModal('modal-vc-tx')" class="px-3.5 py-1.5 border border-muted rounded-lg text-neutral-600">Cancel</button>
-                    <button type="submit" class="px-3.5 py-1.5 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800">Submit Transaction</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Delete Account Confirmation Modal -->
     <div id="modal-delete-account" class="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] hidden">
         <div class="bg-surface rounded-xl border border-red-300 shadow-xl w-full max-w-md overflow-hidden max-h-[92vh] flex flex-col">
@@ -1854,18 +1573,17 @@
             });
         }
 
+        const VC_ENABLED = false;
         const STORAGE_KEY = 'xcx_bbc_management_v1_2';
         let deferredPwaPrompt = null;
 
         const SEED_DATA = {
             settings: {
-                appName: 'XCX BBC Management v1.3',
+                appName: 'XCX BBC Management v1.7',
                 defaultClaimTarget: 100,
                 mainDiamondTarget: 500,
                 dmToBbcRate: 1.0,
-                bbcToDiamondRate: 5.0,
-                updateVcReward: 100,
-                vcToDiamondRate: 1.0
+                bbcToDiamondRate: 5.0
             },
             branches: [
                 { branch_id: 'b_works', branch_name: '@works', email_login: 'works_admin@xcx.com', status: 'Active', notes: 'Akun tercatat cabang works', created_at: '2026-10-01', updated_at: '2026-10-31' },
@@ -2085,7 +1803,7 @@
             resetToInitialData();
         }
 
-        // Helper calculations for PRD v1.2 Currency Rules
+        // Helper calculations for PRD v1.2 Currency Rules (reconciled shared logic)
         function getAccountTotals(accountId) {
             const sources = appData.account_sources.filter(s => s.account_id === accountId);
             const topups = appData.account_topups.filter(t => t.account_id === accountId);
@@ -2096,9 +1814,16 @@
             let topupBonus = 0;
 
             sources.forEach(s => {
-                if (s.source_type === 'DM') dmActivities += Number(s.nominal || 0);
-                if (s.source_type === 'Top-up') topupNominal += Number(s.nominal || 0);
-                if (s.source_type === 'Top-up Bonus') topupBonus += Number(s.bonus_amount || 0);
+                if (s.source_type === 'DM' || s.source_type === 'Other') {
+                    dmActivities += Number(s.nominal || 0);
+                } else if (s.source_type === 'Top-up') {
+                    topupNominal += Number(s.nominal || 0);
+                    if (s.multiplier === 2 || s.bonus_status === 'Claimed') {
+                        topupBonus += Number(s.bonus_amount || (s.multiplier === 2 ? s.nominal : 0) || 0);
+                    }
+                } else if (s.source_type === 'Top-up Bonus') {
+                    topupBonus += Number(s.bonus_amount || s.nominal || 0);
+                }
             });
 
             topups.forEach(t => {
@@ -2113,23 +1838,28 @@
 
             const totalDM = dmActivities + topupNominal + topupBonus + claimsTotal;
 
-            // VC Calculation
+            // VC Calculation (gated behind VC_ENABLED)
             let vcEarned = 0;
-            sources.filter(s => s.source_type === 'Vanguard Coin').forEach(s => vcEarned += Number(s.nominal || 0));
+            if (VC_ENABLED) {
+                sources.filter(s => s.source_type === 'Vanguard Coin').forEach(s => vcEarned += Number(s.nominal || 0));
+            }
 
             // Bonus Status
             let bonusStatus = 'Not Eligible';
-            if (topups.length > 0) {
-                if (topups.some(t => t.bonus_status === 'Claimed')) bonusStatus = 'Claimed';
-                else if (topups.some(t => t.bonus_status === 'Available')) bonusStatus = 'Available';
-            }
+            const hasClaimed = topups.some(t => t.bonus_status === 'Claimed') || 
+                               sources.some(s => s.source_type === 'Top-up Bonus' || (s.source_type === 'Top-up' && (s.bonus_status === 'Claimed' || s.multiplier === 2)));
+            const hasAvailable = topups.some(t => t.bonus_status === 'Available') || 
+                                 sources.some(s => s.source_type === 'Top-up' && s.bonus_status === 'Available');
+
+            if (hasClaimed) bonusStatus = 'Claimed';
+            else if (hasAvailable) bonusStatus = 'Available';
 
             const bbcRate = Number(appData.settings.bbcToDiamondRate || 5);
             const vcRate = Number(appData.settings.vcToDiamondRate || 1);
 
             const estBbcDiamond = bbcRate > 0 ? (totalDM / bbcRate) : 0;
-            const estVcDiamond = vcEarned * vcRate;
-            const totalEstDiamond = estBbcDiamond + estVcDiamond;
+            const estVcDiamond = VC_ENABLED ? (vcEarned * vcRate) : 0;
+            const totalEstDiamond = VC_ENABLED ? (estBbcDiamond + estVcDiamond) : estBbcDiamond;
 
             return {
                 dmActivities,
@@ -2190,9 +1920,11 @@
             document.getElementById('sum-topup-nominal').innerText = `${totals.topupNominal.toLocaleString()} DM`;
             document.getElementById('sum-topup-bonus').innerText = `${totals.topupBonus.toLocaleString()} DM`;
             document.getElementById('sum-total-dm').innerText = `${totals.totalDM.toLocaleString()} DM`;
-            document.getElementById('sum-vc-earned').innerText = `${totals.vcEarned.toLocaleString()} VC`;
-            document.getElementById('sum-vc-spent').innerText = `0 VC`;
-            document.getElementById('sum-vc-balance').innerText = `${totals.vcEarned.toLocaleString()} VC`;
+            if (VC_ENABLED && document.getElementById('sum-vc-earned')) {
+                document.getElementById('sum-vc-earned').innerText = `${totals.vcEarned.toLocaleString()} VC`;
+                document.getElementById('sum-vc-spent').innerText = `0 VC`;
+                document.getElementById('sum-vc-balance').innerText = `${totals.vcEarned.toLocaleString()} VC`;
+            }
 
             // Tab 2 Sources & Bonus
             const topupRecord = appData.account_topups.find(t => t.account_id === accId);
@@ -2206,9 +1938,10 @@
             tbodySources.innerHTML = '';
             appData.account_sources.filter(s => s.account_id === accId).forEach(s => {
                 const tr = document.createElement('tr');
+                const displayType = s.source_type === 'Top-up Bonus' ? 'Top-up (Double Bonus)' : esc(s.source_type);
                 tr.innerHTML = `
                     <td class="p-2.5">${s.received_at || '-'}</td>
-                    <td class="p-2.5 font-bold text-neutral-900">${esc(s.source_type)}</td>
+                    <td class="p-2.5 font-bold text-neutral-900">${displayType}</td>
                     <td class="p-2.5">${s.nominal}</td>
                     <td class="p-2.5">${s.bonus_amount || 0}</td>
                     <td class="p-2.5 font-bold">${s.total_received}</td>
@@ -2242,10 +1975,12 @@
             tbodyTx.innerHTML = '';
             appData.account_sources.filter(s => s.account_id === accId).forEach(s => {
                 const tr = document.createElement('tr');
+                const displayType = s.source_type === 'Top-up Bonus' ? 'Top-up (Double Bonus)' : esc(s.source_type);
+                const currency = (VC_ENABLED && s.source_type === 'Vanguard Coin') ? 'VC' : 'DM';
                 tr.innerHTML = `
                     <td class="p-2.5">${s.received_at}</td>
-                    <td class="p-2.5 font-bold">${s.source_type === 'Vanguard Coin' ? 'VC' : 'DM'}</td>
-                    <td class="p-2.5">${esc(s.source_type)}</td>
+                    <td class="p-2.5 font-bold">${currency}</td>
+                    <td class="p-2.5">${displayType}</td>
                     <td class="p-2.5 text-right font-bold">+${s.total_received}</td>
                     <td class="p-2.5 text-neutral-500">${esc(s.notes || '-')}</td>
                 `;
@@ -2328,6 +2063,20 @@
             renderAccountsTable();
         }
 
+        function onSourceTypeChange() {
+            const type = document.getElementById('source-type').value;
+            const wrap = document.getElementById('source-double-bonus-wrap');
+            const chk = document.getElementById('source-double-bonus');
+            if (wrap) {
+                if (type === 'Top-up') {
+                    wrap.classList.remove('hidden');
+                } else {
+                    wrap.classList.add('hidden');
+                    if (chk) chk.checked = false;
+                }
+            }
+        }
+
         function openAddSourceModal(accId = null) {
             const target = accId ? appData.accounts.find(a => a.account_id === accId) : null;
             if (target && target.status === 'Archived') {
@@ -2336,6 +2085,28 @@
             }
             populateAccountDropdowns(accId);
             if (accId) document.getElementById('source-account-id').value = accId;
+
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('source-date');
+            if (dateInput) {
+                dateInput.value = today;
+                dateInput.max = today;
+            }
+
+            const typeSelect = document.getElementById('source-type');
+            if (typeSelect) typeSelect.value = 'DM';
+
+            const doubleBonusChk = document.getElementById('source-double-bonus');
+            if (doubleBonusChk) doubleBonusChk.checked = false;
+
+            onSourceTypeChange();
+
+            const saveBtn = document.getElementById('btn-save-source');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                delete saveBtn.dataset.busy;
+            }
+
             document.getElementById('modal-add-source').classList.remove('hidden');
         }
 
@@ -2345,31 +2116,81 @@
 
         function handleSaveSourceRecord(e) {
             e.preventDefault();
-            const accId = document.getElementById('source-account-id').value;
-            const type = document.getElementById('source-type').value;
-            const nominal = Number(document.getElementById('source-nominal').value);
-            const notes = document.getElementById('source-notes').value.trim();
+            const btn = document.getElementById('btn-save-source');
+            if (btn && btn.dataset.busy === '1') return;
+            if (btn) {
+                btn.dataset.busy = '1';
+                btn.disabled = true;
+            }
 
-            const newSource = {
-                source_id: `src_${Date.now()}`,
-                account_id: accId,
-                source_type: type,
-                nominal: nominal,
-                bonus_status: type === 'Top-up Bonus' ? 'Claimed' : 'Not Eligible',
-                multiplier: type === 'Top-up Bonus' ? 2 : 1,
-                bonus_amount: type === 'Top-up Bonus' ? nominal : 0,
-                total_received: type === 'Top-up Bonus' ? nominal * 2 : nominal,
-                received_at: new Date().toISOString().split('T')[0],
-                notes: notes
-            };
+            try {
+                const accId = document.getElementById('source-account-id').value;
+                const type = document.getElementById('source-type').value;
+                const nominalInput = document.getElementById('source-nominal').value;
+                const nominal = Number(nominalInput);
+                const notes = document.getElementById('source-notes').value.trim();
+                const dateInput = document.getElementById('source-date');
+                const today = new Date().toISOString().split('T')[0];
+                const receivedAt = (dateInput && dateInput.value) ? dateInput.value.trim() : today;
 
-            appData.account_sources.push(newSource);
-            saveData();
-            addLog('RECORD_SOURCE', 'AccountSource', accId, null, newSource);
-            toast("Source record berhasil disimpan.");
-            closeModal('modal-add-source');
-            renderAccountsTable();
-            if (currentActiveAccountId === accId) renderAccountDetailTabContents(accId);
+                // Validate nominal: finite number > 0
+                if (!Number.isFinite(nominal) || nominal <= 0) {
+                    alert('Nominal harus berupa angka lebih besar dari 0.');
+                    return;
+                }
+
+                // Validate date: YYYY-MM-DD and not in the future
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(receivedAt) || receivedAt > today) {
+                    alert('Tanggal transaksi tidak valid atau berada di masa depan.');
+                    return;
+                }
+
+                let multiplier = 1;
+                let bonusAmount = 0;
+                let bonusStatus = 'Not Eligible';
+                let totalReceived = nominal;
+
+                if (type === 'Top-up') {
+                    const isDoubleBonus = !!(document.getElementById('source-double-bonus') || {}).checked;
+                    if (isDoubleBonus) {
+                        multiplier = 2;
+                        bonusAmount = nominal;
+                        bonusStatus = 'Claimed';
+                        totalReceived = nominal * 2;
+                    } else {
+                        multiplier = 1;
+                        bonusAmount = 0;
+                        bonusStatus = 'Not Eligible';
+                        totalReceived = nominal;
+                    }
+                }
+
+                const newSource = {
+                    source_id: `src_${Date.now()}`,
+                    account_id: accId,
+                    source_type: type,
+                    nominal: nominal,
+                    bonus_status: bonusStatus,
+                    multiplier: multiplier,
+                    bonus_amount: bonusAmount,
+                    total_received: totalReceived,
+                    received_at: receivedAt,
+                    notes: notes
+                };
+
+                appData.account_sources.push(newSource);
+                saveData();
+                addLog('RECORD_SOURCE', 'AccountSource', accId, null, newSource);
+                toast("Source record berhasil disimpan.");
+                closeModal('modal-add-source');
+                renderAccountsTable();
+                if (currentActiveAccountId === accId) renderAccountDetailTabContents(accId);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    delete btn.dataset.busy;
+                }
+            }
         }
 
         function populateAccountDropdowns(includeId = null) {
@@ -2424,8 +2245,6 @@
                     <td class="px-3.5 py-2 font-bold text-neutral-900">${esc(a.server_code)}${dupBadge}</td>
                     <td class="px-3.5 py-2">Lvl ${a.level}</td>
                     <td class="px-3.5 py-2">${getStatusBadgeHTML(a.status)}</td>
-                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.totalDM.toLocaleString()} DM</td>
-                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.vcEarned.toLocaleString()} VC</td>
                     <td class="px-3.5 py-2 text-center">${getBonusBadgeHTML(totals.bonusStatus)}</td>
                     <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.totalEstDiamond.toFixed(1)} 💎</td>
                     <td class="px-3.5 py-2 text-right space-x-1">
@@ -2443,18 +2262,15 @@
             let totalDmSources = 0;
             let totalTopupNominal = 0;
             let totalTopupBonus = 0;
-
-            appData.account_sources.forEach(s => {
-                if (s.source_type === 'DM') totalDmSources += Number(s.nominal || 0);
-            });
-
-            appData.account_topups.forEach(t => {
-                totalTopupNominal += Number(t.nominal || 0);
-                if (t.bonus_status === 'Claimed') totalTopupBonus += Number(t.bonus_amount || t.nominal || 0);
-            });
-
             let totalClaims = 0;
-            appData.claims.filter(c => c.claim_status === 'Claimed').forEach(c => totalClaims += Number(c.dm_claimed || 0));
+
+            appData.accounts.forEach(a => {
+                const t = getAccountTotals(a.account_id);
+                totalDmSources += t.dmActivities;
+                totalTopupNominal += t.topupNominal;
+                totalTopupBonus += t.topupBonus;
+                totalClaims += t.claimsTotal;
+            });
 
             const totalDM = totalDmSources + totalTopupNominal + totalTopupBonus + totalClaims;
             const dmRate = Number(appData.settings.dmToBbcRate || 1);
@@ -2464,15 +2280,20 @@
 
             let vcEarned = 0;
             let vcSpent = 0;
-            appData.vc_transactions.forEach(tx => {
-                vcEarned += Number(tx.vc_earned || 0);
-                vcSpent += Number(tx.vc_spent || 0);
-            });
-            const vcBalance = vcEarned - vcSpent;
-            const vcRate = Number(appData.settings.vcToDiamondRate || 1);
-            const diamondFromVc = vcBalance * vcRate;
+            let vcBalance = 0;
+            let diamondFromVc = 0;
 
-            const totalEstimatedDiamonds = diamondFromBBC + diamondFromVc;
+            if (VC_ENABLED) {
+                appData.vc_transactions.forEach(tx => {
+                    vcEarned += Number(tx.vc_earned || 0);
+                    vcSpent += Number(tx.vc_spent || 0);
+                });
+                vcBalance = vcEarned - vcSpent;
+                const vcRate = Number(appData.settings.vcToDiamondRate || 1);
+                diamondFromVc = vcBalance * vcRate;
+            }
+
+            const totalEstimatedDiamonds = VC_ENABLED ? (diamondFromBBC + diamondFromVc) : diamondFromBBC;
 
             return {
                 totalDmSources,
