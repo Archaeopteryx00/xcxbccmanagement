@@ -55,8 +55,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- PapaParse for CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- Supabase JS v2 Client (pinned) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <!-- Supabase JS v2 Client (Local bundle with unpkg fallback) -->
+    <script src="services/supabase.js"></script>
+    <script>
+        if (typeof window.supabase === 'undefined') {
+            document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+        }
+    </script>
     <!-- XCX Supabase Cloud Sync Manager -->
     <script src="services/supabaseManager.js"></script>
     

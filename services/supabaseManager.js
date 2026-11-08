@@ -11,60 +11,135 @@
     let currentUser = null;
     let isSyncing = false;
     let activeAuthTab = 'login';
+    let sdkLoadingPromise = null;
 
     // -------------------------------------------------------------------------
-    // 1. Initialization & Auth Lifecycle
+    // 1. Dynamic SDK Loader & Lazy Client Factory
+    // -------------------------------------------------------------------------
+    function ensureSdkLoaded() {
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            return Promise.resolve(true);
+        }
+        if (sdkLoadingPromise) return sdkLoadingPromise;
+
+        sdkLoadingPromise = new Promise((resolve) => {
+            console.log('[SupabaseManager] Loading Supabase SDK dynamically...');
+
+            // Step 1: Try local bundle first (zero internet/ISP blocking dependency)
+            const scriptLocal = document.createElement('script');
+            scriptLocal.src = 'services/supabase.js';
+
+            scriptLocal.onload = () => {
+                if (window.supabase && typeof window.supabase.createClient === 'function') {
+                    console.log('[SupabaseManager] SDK loaded from local bundle (services/supabase.js)');
+                    resolve(true);
+                } else {
+                    tryUnpkg(resolve);
+                }
+            };
+
+            scriptLocal.onerror = () => {
+                console.warn('[SupabaseManager] Local bundle not found, falling back to unpkg CDN...');
+                tryUnpkg(resolve);
+            };
+
+            document.head.appendChild(scriptLocal);
+        });
+
+        return sdkLoadingPromise;
+    }
+
+    function tryUnpkg(resolve) {
+        const scriptCdn = document.createElement('script');
+        scriptCdn.src = 'https://unpkg.com/@supabase/supabase-js@2';
+        scriptCdn.onload = () => {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                console.log('[SupabaseManager] SDK loaded from unpkg CDN');
+                resolve(true);
+            } else {
+                console.error('[SupabaseManager] Failed to export window.supabase from unpkg');
+                resolve(false);
+            }
+        };
+        scriptCdn.onerror = (err) => {
+            console.error('[SupabaseManager] CDN load failed:', err);
+            resolve(false);
+        };
+        document.head.appendChild(scriptCdn);
+    }
+
+    function getClient() {
+        if (sbClient) return sbClient;
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            try {
+                sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+                    auth: {
+                        persistSession: true,
+                        autoRefreshToken: true,
+                        detectSessionInUrl: true
+                    }
+                });
+
+                sbClient.auth.onAuthStateChange(async (event, session) => {
+                    console.log(`[SupabaseManager] Auth event: ${event}`);
+                    currentUser = session?.user || null;
+                    updateCloudUI();
+
+                    if (event === 'SIGNED_IN' && session) {
+                        await syncFromCloud(false);
+                    } else if (event === 'SIGNED_OUT') {
+                        currentUser = null;
+                        updateCloudUI();
+                        if (typeof window.toast === 'function') window.toast('Sesi berakhir. Kembali ke mode LocalStorage.', 'info');
+                    }
+                });
+
+                return sbClient;
+            } catch (err) {
+                console.error('[SupabaseManager] createClient error:', err);
+            }
+        }
+        return null;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Initialization & Session Restoration
     // -------------------------------------------------------------------------
     async function init() {
         console.log('[SupabaseManager] Initializing client...');
-        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-            console.warn('[SupabaseManager] Supabase JS SDK not loaded. Operating in LocalStorage mode.');
-            updateCloudUI();
-            return;
+        let client = getClient();
+
+        if (!client) {
+            console.log('[SupabaseManager] SDK not detected yet, loading dynamically...');
+            const loaded = await ensureSdkLoaded();
+            if (loaded) {
+                client = getClient();
+            }
         }
 
-        try {
-            sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
-                auth: {
-                    persistSession: true,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: true
-                }
-            });
-
-            // Listen to Auth State Changes
-            sbClient.auth.onAuthStateChange(async (event, session) => {
-                console.log(`[SupabaseManager] Auth event: ${event}`);
+        if (client) {
+            try {
+                const { data: { session }, error } = await client.auth.getSession();
+                if (error) console.warn('[SupabaseManager] getSession error:', error);
                 currentUser = session?.user || null;
                 updateCloudUI();
 
-                if (event === 'SIGNED_IN' && session) {
+                if (currentUser) {
+                    console.log(`[SupabaseManager] Restored active session for: ${currentUser.email}`);
                     await syncFromCloud(false);
-                } else if (event === 'SIGNED_OUT') {
-                    currentUser = null;
-                    updateCloudUI();
-                    if (typeof window.toast === 'function') window.toast('Sesi berakhir. Kembali ke mode LocalStorage.', 'info');
                 }
-            });
-
-            // Restore existing session
-            const { data: { session }, error } = await sbClient.auth.getSession();
-            if (error) console.warn('[SupabaseManager] getSession error:', error);
-            currentUser = session?.user || null;
-            updateCloudUI();
-
-            if (currentUser) {
-                console.log(`[SupabaseManager] Restored active session for: ${currentUser.email}`);
-                await syncFromCloud(false);
+            } catch (err) {
+                console.error('[SupabaseManager] Session restore error:', err);
+                updateCloudUI();
             }
-        } catch (err) {
-            console.error('[SupabaseManager] Initialization failure:', err);
+        } else {
+            console.warn('[SupabaseManager] Running in offline LocalStorage mode.');
             updateCloudUI();
         }
     }
 
     // -------------------------------------------------------------------------
-    // 2. UI Status & Modals
+    // 3. UI Status & Modals
     // -------------------------------------------------------------------------
     function updateCloudUI() {
         const badge = document.getElementById('cloud-status-badge');
@@ -113,6 +188,11 @@
         if (errDiv) errDiv.classList.add('hidden');
         const modal = document.getElementById('modal-auth');
         if (modal) modal.classList.remove('hidden');
+
+        // Ensure SDK is ready in background
+        if (!getClient()) {
+            ensureSdkLoaded().then(() => getClient());
+        }
     }
 
     function closeAuthModal() {
@@ -144,25 +224,41 @@
 
     async function handleAuthSubmit(e) {
         e.preventDefault();
-        if (!sbClient) {
-            alert('Supabase client belum siap. Pastikan koneksi internet aktif.');
-            return;
-        }
-
-        const email = document.getElementById('auth-email').value.trim();
-        const password = document.getElementById('auth-password').value;
         const errDiv = document.getElementById('auth-error-msg');
         const submitBtn = document.getElementById('auth-submit-btn');
 
         if (errDiv) errDiv.classList.add('hidden');
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Memproses...';
+            submitBtn.textContent = 'Menghubungkan...';
         }
+
+        let client = getClient();
+        if (!client) {
+            if (submitBtn) submitBtn.textContent = 'Memuat SDK Supabase...';
+            await ensureSdkLoaded();
+            client = getClient();
+        }
+
+        if (!client) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = activeAuthTab === 'login' ? 'Masuk ke Cloud' : 'Daftar Akun Operator';
+            }
+            if (errDiv) {
+                errDiv.className = 'p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-[11px] text-rose-700 font-medium';
+                errDiv.textContent = 'Gagal memuat SDK Supabase. Pastikan file services/supabase.js tersedia atau tidak ada ekstensi pemblokir skrip.';
+                errDiv.classList.remove('hidden');
+            }
+            return;
+        }
+
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value;
 
         try {
             if (activeAuthTab === 'login') {
-                const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+                const { data, error } = await client.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 currentUser = data.user;
                 closeAuthModal();
@@ -172,7 +268,7 @@
                 }
                 await syncFromCloud(false);
             } else {
-                const { data, error } = await sbClient.auth.signUp({ email, password });
+                const { data, error } = await client.auth.signUp({ email, password });
                 if (error) throw error;
 
                 if (data.session) {
@@ -186,7 +282,7 @@
                 } else {
                     if (errDiv) {
                         errDiv.className = 'p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-800 font-medium';
-                        errDiv.innerHTML = `Pendaftaran berhasil! Link konfirmasi telah dikirimkan ke <strong>${esc(email)}</strong>. Silakan periksa inbox/spam dan klik tautan konfirmasi sebelum login.`;
+                        errDiv.innerHTML = `Pendaftaran berhasil! Tautan konfirmasi telah dikirimkan ke <strong>${esc(email)}</strong>. Silakan periksa inbox/spam dan klik tautan konfirmasi sebelum login.`;
                         errDiv.classList.remove('hidden');
                     }
                 }
@@ -208,8 +304,9 @@
 
     async function handleLogout() {
         if (!confirm(`Logout dari akun Supabase (${currentUser?.email})? Data offline lokal tetap tersimpan.`)) return;
+        const client = getClient();
         try {
-            if (sbClient) await sbClient.auth.signOut();
+            if (client) await client.auth.signOut();
         } catch (err) {
             console.warn('[SupabaseManager] Logout error:', err);
         } finally {
@@ -220,10 +317,11 @@
     }
 
     // -------------------------------------------------------------------------
-    // 3. Two-Way Synchronization (Cloud <-> Local)
+    // 4. Two-Way Synchronization (Cloud <-> Local)
     // -------------------------------------------------------------------------
     async function syncFromCloud(isManual = false) {
-        if (!sbClient || !currentUser) {
+        const client = getClient();
+        if (!client || !currentUser) {
             if (isManual) openAuthModal();
             return;
         }
@@ -241,7 +339,7 @@
             console.log('[SupabaseManager] Syncing from Supabase Cloud...');
 
             // Check if cloud has accounts
-            const { count: accountCount, error: countErr } = await sbClient
+            const { count: accountCount, error: countErr } = await client
                 .from('accounts')
                 .select('*', { count: 'exact', head: true });
 
@@ -261,15 +359,15 @@
 
             // Cloud has data: fetch all tables in parallel
             const [branchesRes, accountsRes, updatesRes, claimsRes, sourcesRes, topupsRes, vcRes, logsRes, settingsRes] = await Promise.all([
-                sbClient.from('branches').select('*').order('created_at', { ascending: true }),
-                sbClient.from('accounts').select('*').order('created_at', { ascending: true }),
-                sbClient.from('updates').select('*').order('created_at', { ascending: true }),
-                sbClient.from('claims').select('*'),
-                sbClient.from('account_sources').select('*'),
-                sbClient.from('account_topups').select('*'),
-                sbClient.from('vc_transactions').select('*'),
-                sbClient.from('activity_logs').select('*').order('created_at', { ascending: true }),
-                sbClient.from('settings').select('*')
+                client.from('branches').select('*').order('created_at', { ascending: true }),
+                client.from('accounts').select('*').order('created_at', { ascending: true }),
+                client.from('updates').select('*').order('created_at', { ascending: true }),
+                client.from('claims').select('*'),
+                client.from('account_sources').select('*'),
+                client.from('account_topups').select('*'),
+                client.from('vc_transactions').select('*'),
+                client.from('activity_logs').select('*').order('created_at', { ascending: true }),
+                client.from('settings').select('*')
             ]);
 
             if (branchesRes.error) throw branchesRes.error;
@@ -328,10 +426,11 @@
     }
 
     // -------------------------------------------------------------------------
-    // 4. Initial Migration Upload (Local -> Cloud)
+    // 5. Initial Migration Upload (Local -> Cloud)
     // -------------------------------------------------------------------------
     async function executeInitialUpload() {
-        if (!sbClient || !currentUser) return;
+        const client = getClient();
+        if (!client || !currentUser) return;
         const btn = document.getElementById('cloud-migration-confirm-btn');
         if (btn) {
             btn.disabled = true;
@@ -351,7 +450,7 @@
                     status: b.status || 'Active',
                     notes: b.notes || null
                 }));
-                const { error: bErr } = await sbClient.from('branches').upsert(branchRows);
+                const { error: bErr } = await client.from('branches').upsert(branchRows);
                 if (bErr) throw bErr;
             }
 
@@ -368,7 +467,7 @@
                     auto_level_result: a.auto_level_result || 'Untested',
                     notes: a.notes || null
                 }));
-                const { error: aErr } = await sbClient.from('accounts').upsert(accRows);
+                const { error: aErr } = await client.from('accounts').upsert(accRows);
                 if (aErr) throw aErr;
             }
 
@@ -385,7 +484,7 @@
                     eligibility_rule: u.eligibility_rule || 'all_active',
                     notes: u.notes || null
                 }));
-                const { error: uErr } = await sbClient.from('updates').upsert(updateRows);
+                const { error: uErr } = await client.from('updates').upsert(updateRows);
                 if (uErr) throw uErr;
             }
 
@@ -406,7 +505,7 @@
                         notes: c.notes || null
                     };
                 });
-                const { error: cErr } = await sbClient.from('claims').upsert(claimRows);
+                const { error: cErr } = await client.from('claims').upsert(claimRows);
                 if (cErr) throw cErr;
             }
 
@@ -422,7 +521,7 @@
                     received_at: s.received_at || null,
                     notes: s.notes || null
                 }));
-                const { error: sErr } = await sbClient.from('account_sources').upsert(srcRows);
+                const { error: sErr } = await client.from('account_sources').upsert(srcRows);
                 if (sErr) throw sErr;
             }
 
@@ -439,7 +538,7 @@
                     bonus_claim_date: t.bonus_claim_date || null,
                     notes: t.notes || null
                 }));
-                const { error: tErr } = await sbClient.from('account_topups').upsert(tpRows);
+                const { error: tErr } = await client.from('account_topups').upsert(tpRows);
                 if (tErr) throw tErr;
             }
 
@@ -456,7 +555,7 @@
                 })).filter(v => (v.vc_earned > 0 || v.vc_spent > 0));
 
                 if (vcRows.length > 0) {
-                    const { error: vcErr } = await sbClient.from('vc_transactions').upsert(vcRows);
+                    const { error: vcErr } = await client.from('vc_transactions').upsert(vcRows);
                     if (vcErr) console.warn('[SupabaseManager] VC sync warning:', vcErr);
                 }
             }
@@ -481,10 +580,11 @@
     }
 
     // -------------------------------------------------------------------------
-    // 5. Cloud Mutation Event Handlers
+    // 6. Cloud Mutation Event Handlers
     // -------------------------------------------------------------------------
     function onAccountSaved(acc, isNew) {
-        if (!sbClient || !currentUser || !acc) return;
+        const client = getClient();
+        if (!client || !currentUser || !acc) return;
         const row = {
             account_id: acc.account_id,
             branch_id: acc.branch_id,
@@ -496,34 +596,38 @@
             auto_level_result: acc.auto_level_result || 'Untested',
             notes: acc.notes || null
         };
-        sbClient.from('accounts').upsert(row).then(({ error }) => {
+        client.from('accounts').upsert(row).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Account]', error);
         });
     }
 
     function onAccountDeleted(accountId) {
-        if (!sbClient || !currentUser || !accountId) return;
-        sbClient.rpc('delete_account', { p_account_id: accountId }).then(({ error }) => {
+        const client = getClient();
+        if (!client || !currentUser || !accountId) return;
+        client.rpc('delete_account', { p_account_id: accountId }).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Delete Account]', error);
         });
     }
 
     function onAccountArchived(accountId) {
-        if (!sbClient || !currentUser || !accountId) return;
-        sbClient.rpc('archive_account', { p_account_id: accountId }).then(({ error }) => {
+        const client = getClient();
+        if (!client || !currentUser || !accountId) return;
+        client.rpc('archive_account', { p_account_id: accountId }).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Archive Account]', error);
         });
     }
 
     function onAccountRestored(accountId) {
-        if (!sbClient || !currentUser || !accountId) return;
-        sbClient.rpc('restore_account', { p_account_id: accountId }).then(({ error }) => {
+        const client = getClient();
+        if (!client || !currentUser || !accountId) return;
+        client.rpc('restore_account', { p_account_id: accountId }).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Restore Account]', error);
         });
     }
 
     function onBranchSaved(branch, isNew) {
-        if (!sbClient || !currentUser || !branch) return;
+        const client = getClient();
+        if (!client || !currentUser || !branch) return;
         const row = {
             branch_id: branch.branch_id,
             branch_name: branch.branch_name,
@@ -531,22 +635,24 @@
             status: branch.status || 'Active',
             notes: branch.notes || null
         };
-        sbClient.from('branches').upsert(row).then(({ error }) => {
+        client.from('branches').upsert(row).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Branch]', error);
         });
     }
 
     function onBranchDeleted(branchId) {
-        if (!sbClient || !currentUser || !branchId) return;
-        sbClient.rpc('delete_branch', { p_branch_id: branchId }).then(({ error }) => {
+        const client = getClient();
+        if (!client || !currentUser || !branchId) return;
+        client.rpc('delete_branch', { p_branch_id: branchId }).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Delete Branch]', error);
         });
     }
 
     function onUpdateSaved(update, isNew) {
-        if (!sbClient || !currentUser || !update) return;
+        const client = getClient();
+        if (!client || !currentUser || !update) return;
         if (isNew) {
-            sbClient.rpc('create_update', {
+            client.rpc('create_update', {
                 p_update_id: update.update_id,
                 p_update_name: update.update_name,
                 p_start_date: update.start_date || null,
@@ -559,7 +665,7 @@
                 if (error) console.error('[Supabase Cloud Mutation Error: Create Update]', error);
             });
         } else {
-            sbClient.from('updates').update({
+            client.from('updates').update({
                 update_name: update.update_name,
                 start_date: update.start_date || null,
                 end_date: update.end_date || null,
@@ -572,17 +678,19 @@
     }
 
     function onUpdateDeleted(updateId) {
-        if (!sbClient || !currentUser || !updateId) return;
-        sbClient.from('claims').delete().eq('update_id', updateId).then(() => {
-            sbClient.from('updates').delete().eq('update_id', updateId).then(({ error }) => {
+        const client = getClient();
+        if (!client || !currentUser || !updateId) return;
+        client.from('claims').delete().eq('update_id', updateId).then(() => {
+            client.from('updates').delete().eq('update_id', updateId).then(({ error }) => {
                 if (error) console.error('[Supabase Cloud Mutation Error: Delete Update]', error);
             });
         });
     }
 
     function onClaimStatusChanged(claimId, status, amount) {
-        if (!sbClient || !currentUser || !claimId) return;
-        sbClient.rpc('set_claim_status', {
+        const client = getClient();
+        if (!client || !currentUser || !claimId) return;
+        client.rpc('set_claim_status', {
             p_claim_id: claimId,
             p_claim_status: status,
             p_reward_amount: Number(amount || 0),
@@ -593,8 +701,9 @@
     }
 
     function onBulkClaim(updateId, accountIds, amount) {
-        if (!sbClient || !currentUser || !updateId) return;
-        sbClient.rpc('bulk_claim', {
+        const client = getClient();
+        if (!client || !currentUser || !updateId) return;
+        client.rpc('bulk_claim', {
             p_update_id: updateId,
             p_account_ids: accountIds,
             p_reward_amount: Number(amount || 0)
@@ -604,7 +713,8 @@
     }
 
     function onSourceSaved(source) {
-        if (!sbClient || !currentUser || !source) return;
+        const client = getClient();
+        if (!client || !currentUser || !source) return;
         const row = {
             source_id: source.source_id,
             account_id: source.account_id,
@@ -615,13 +725,14 @@
             received_at: source.received_at || null,
             notes: source.notes || null
         };
-        sbClient.from('account_sources').upsert(row).then(({ error }) => {
+        client.from('account_sources').upsert(row).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Account Source]', error);
         });
     }
 
     function onTopupSaved(topup) {
-        if (!sbClient || !currentUser || !topup) return;
+        const client = getClient();
+        if (!client || !currentUser || !topup) return;
         const row = {
             topup_id: topup.topup_id,
             account_id: topup.account_id,
@@ -633,13 +744,14 @@
             bonus_claim_date: topup.bonus_claim_date || null,
             notes: topup.notes || null
         };
-        sbClient.from('account_topups').upsert(row).then(({ error }) => {
+        client.from('account_topups').upsert(row).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Account Topup]', error);
         });
     }
 
     function onLogAdded(log) {
-        if (!sbClient || !currentUser || !log) return;
+        const client = getClient();
+        if (!client || !currentUser || !log) return;
         const row = {
             log_id: log.log_id,
             action: log.action,
@@ -648,7 +760,7 @@
             old_value: log.old_value ? (typeof log.old_value === 'object' ? log.old_value : JSON.parse(log.old_value || '{}')) : null,
             new_value: log.new_value ? (typeof log.new_value === 'object' ? log.new_value : JSON.parse(log.new_value || '{}')) : null
         };
-        sbClient.from('activity_logs').insert(row).then(({ error }) => {
+        client.from('activity_logs').insert(row).then(({ error }) => {
             if (error) console.error('[Supabase Cloud Mutation Error: Log]', error);
         });
     }
@@ -683,4 +795,3 @@
 
     console.log('[SupabaseManager] Module loaded.');
 })();
-
