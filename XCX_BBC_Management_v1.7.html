@@ -55,6 +55,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- PapaParse for CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Supabase JS v2 Client (pinned) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <!-- XCX Supabase Cloud Sync Manager -->
+    <script src="services/supabaseManager.js"></script>
     
     <style>
         body {
@@ -241,15 +245,26 @@
                 <h2 id="page-title" class="text-sm font-bold text-neutral-900">Dashboard</h2>
             </div>
             
-            <div class="flex items-center gap-2.5">
+            <div class="flex items-center gap-2">
                 <button id="pwa-install-btn" onclick="installPWA()" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-neutral-900 text-white hover:bg-neutral-800 transition-all shadow-sm">
                     <i data-lucide="download" class="w-3 h-3"></i>
                     <span>Install App</span>
                 </button>
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-800 border border-neutral-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-neutral-900 mr-1.5"></span>
-                    Account Source & Reward Tracking
-                </span>
+
+                <!-- Supabase Cloud Sync UI -->
+                <div id="cloud-sync-container" class="flex items-center gap-1.5">
+                    <div id="cloud-status-badge" class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-neutral-100 text-neutral-600 border border-neutral-200" title="Data saat ini hanya tersimpan di browser perangkat ini">
+                        <span id="cloud-status-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                        <span id="cloud-status-text">LocalStorage Mode</span>
+                    </div>
+                    <button type="button" id="cloud-sync-btn" onclick="window.supabaseManager?.syncFromCloud(true)" class="hidden items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200 transition-all" title="Sinkronkan dengan Supabase Cloud">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        <span>Sync</span>
+                    </button>
+                    <button type="button" id="cloud-auth-btn" onclick="window.supabaseManager?.openAuthModal()" class="px-2.5 py-1 rounded-md text-[10px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-white transition-all shadow-sm">
+                        Login Cloud
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -1513,6 +1528,89 @@
         </div>
     </div>
 
+    <!-- MODAL: SUPABASE AUTH & CLOUD SYNC -->
+    <div id="modal-auth" class="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-surface rounded-xl border border-muted w-full max-w-sm overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-muted flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 bg-brand-900 text-white rounded-lg flex items-center justify-center font-bold text-xs">X</div>
+                    <div>
+                        <h3 class="font-bold text-xs text-neutral-900">Koneksi Supabase Cloud</h3>
+                        <p class="text-[10px] text-neutral-500">Sinkronisasi data otomatis antar-perangkat</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModal('modal-auth')" class="p-1 hover:bg-neutral-100 rounded-md text-neutral-500">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Tab switcher: Login / Register -->
+            <div class="flex border-b border-muted bg-neutral-50/50 text-xs">
+                <button type="button" id="auth-tab-login" onclick="window.supabaseManager?.setAuthTab('login')" class="flex-1 py-2.5 text-center text-neutral-900 border-b-2 border-neutral-900 transition-all font-semibold">
+                    Masuk (Login)
+                </button>
+                <button type="button" id="auth-tab-register" onclick="window.supabaseManager?.setAuthTab('register')" class="flex-1 py-2.5 text-center text-neutral-500 hover:text-neutral-900 border-b-2 border-transparent transition-all font-medium">
+                    Daftar Akun Baru
+                </button>
+            </div>
+
+            <form id="form-auth" onsubmit="window.supabaseManager?.handleAuthSubmit(event)" class="p-5 space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Email Operator</label>
+                    <input type="email" id="auth-email" required placeholder="operator@xcx.com" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                </div>
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Password</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                </div>
+
+                <div id="auth-info-msg" class="p-2.5 bg-neutral-50 rounded-lg border border-neutral-200 text-[11px] text-neutral-600">
+                    Masuk dengan akun yang sama di perangkat mana pun agar data selalu tersinkronisasi.
+                </div>
+
+                <div id="auth-error-msg" class="p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-[11px] text-rose-700 font-medium hidden">
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-2 border-t border-muted">
+                    <button type="button" onclick="closeModal('modal-auth')" class="px-3 py-1.5 rounded-lg border border-muted hover:bg-neutral-50 text-neutral-700 font-medium">Batal</button>
+                    <button type="submit" id="auth-submit-btn" class="px-4 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white font-semibold shadow-sm">Masuk ke Cloud</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CLOUD DATA MIGRATION / INITIAL UPLOAD -->
+    <div id="modal-cloud-migration" class="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-surface rounded-xl border border-muted w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4">
+            <div class="flex items-start gap-3">
+                <div class="p-2.5 bg-neutral-100 text-neutral-900 rounded-xl shrink-0">
+                    <i data-lucide="cloud-upload" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm text-neutral-900">Database Supabase Masih Kosong</h3>
+                    <p class="text-xs text-neutral-600 mt-1">
+                        Akun Supabase Anda belum memiliki data, namun di perangkat ini ditemukan data lokal (<span id="cloud-migration-acc-count" class="font-bold text-neutral-900">34</span> akun, <span id="cloud-migration-branch-count" class="font-bold text-neutral-900">4</span> cabang).
+                    </p>
+                    <p class="text-xs text-neutral-600 mt-2">
+                        Apakah Anda ingin mengunggah seluruh data lokal saat ini ke cloud Supabase agar langsung tersinkronisasi ke perangkat lain?
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-[11px] text-neutral-500">
+                <span class="font-semibold text-neutral-700">Catatan:</span> Proses ini aman dan tidak menghapus data lokal perangkat Anda.
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-muted">
+                <button type="button" onclick="closeModal('modal-cloud-migration')" class="px-3 py-1.5 rounded-lg border border-muted hover:bg-neutral-50 text-neutral-700 font-medium text-xs">Nanti Saja</button>
+                <button type="button" id="cloud-migration-confirm-btn" onclick="window.supabaseManager?.executeInitialUpload()" class="px-4 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                    <span>Unggah ke Cloud Sekarang</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast Container -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
@@ -1768,6 +1866,9 @@
             }
             initSidebar();
             switchTab('dashboard');
+            if (window.supabaseManager && typeof window.supabaseManager.init === 'function') {
+                window.supabaseManager.init();
+            }
         }
 
         function saveData() {
@@ -2057,6 +2158,7 @@
             }
 
             saveData();
+            if (window.supabaseManager) window.supabaseManager.onTopupSaved(topupRec);
             addLog('UPDATE_DOUBLE_BONUS', 'AccountTopup', currentActiveAccountId, null, `Bonus status set to ${newStatus}`);
             toast("Status Double Bonus diperbarui.");
             renderAccountDetailTabContents(currentActiveAccountId);
@@ -2180,6 +2282,7 @@
 
                 appData.account_sources.push(newSource);
                 saveData();
+                if (window.supabaseManager) window.supabaseManager.onSourceSaved(newSource);
                 addLog('RECORD_SOURCE', 'AccountSource', accId, null, newSource);
                 toast("Source record berhasil disimpan.");
                 closeModal('modal-add-source');
@@ -3189,6 +3292,7 @@
 
             appData.branches = appData.branches.filter(b => b.branch_id !== branchId);
             saveData();
+            if (window.supabaseManager) window.supabaseManager.onBranchDeleted(branchId);
             addLog('DELETE_BRANCH', 'Branch', branchId, branch, null);
             toast('Cabang berhasil dihapus.');
             renderBranchesTable();
@@ -3247,6 +3351,7 @@
             acc.status = 'Archived';
             acc.updated_at = today;
             saveData();
+            if (window.supabaseManager) window.supabaseManager.onAccountArchived(accId);
             addLog('ARCHIVE_ACCOUNT', 'Account', accId, oldVal, acc);
             toast(`${acc.server_code} archived.`);
             afterAccountLifecycleChange();
@@ -3263,6 +3368,7 @@
             delete acc.archived_at;
             acc.updated_at = new Date().toISOString().split('T')[0];
             saveData();
+            if (window.supabaseManager) window.supabaseManager.onAccountRestored(accId);
             addLog('RESTORE_ACCOUNT', 'Account', accId, oldVal, acc);
             toast(`${acc.server_code} restored (${acc.status}).`);
             afterAccountLifecycleChange();
@@ -3390,6 +3496,7 @@
                 appData.vc_transactions.forEach(t => { running += Number(t.vc_earned || 0) - Number(t.vc_spent || 0); t.balance = running; });
 
                 saveData();
+                if (window.supabaseManager) window.supabaseManager.onAccountDeleted(accId);
                 addLog('DELETE_ACCOUNT', 'Account', accId, removed,
                     `Deleted ${acc.server_code}: ${removed.claims.length} claims, ${removed.account_sources.length} sources, ${removed.account_topups.length} top-ups, ${removed.vc_transactions.length} VC transactions`);
 
@@ -3595,6 +3702,10 @@
                 changed++;
             });
             saveData();
+            if (window.supabaseManager) {
+                const accIds = selectedIds.map(id => (appData.claims.find(c => c.claim_id === id) || {}).account_id).filter(Boolean);
+                window.supabaseManager.onBulkClaim(currentSelectedUpdateId, accIds, 0);
+            }
             toast(`${changed} akun ditandai Claimed.`);
             renderClaimsTable(currentSelectedUpdateId);
         }
@@ -3648,6 +3759,9 @@
             }
 
             saveData();
+            if (window.supabaseManager) {
+                window.supabaseManager.onUpdateSaved(!id ? newUp : up, !id);
+            }
             closeModal('modal-update');
             renderClaimsSection();
         }
@@ -3666,6 +3780,9 @@
             appData.claims = appData.claims.filter(c => c.update_id !== updateId);
 
             saveData();
+            if (window.supabaseManager) {
+                window.supabaseManager.onUpdateDeleted(updateId);
+            }
             addLog('DELETE_UPDATE_PERIOD', 'UpdatePeriod', updateId, up, null);
             toast('Periode update berhasil dihapus.');
             renderClaimsSection();
@@ -3719,6 +3836,9 @@
             }
 
             saveData();
+            if (window.supabaseManager) {
+                window.supabaseManager.onClaimStatusChanged(claimId, status, dm);
+            }
             closeModal('modal-claim');
             renderClaimsSection();
         }
@@ -3969,6 +4089,9 @@
                 }
 
                 saveData();
+                if (window.supabaseManager) {
+                    window.supabaseManager.onBranchSaved(!id ? nb : appData.branches.find(x => x.branch_id === id), !id);
+                }
                 closeModal('modal-branch');
                 renderBranchesTable();
                 populateBranchDropdowns();
@@ -4267,6 +4390,9 @@
                 }
 
                 saveData();
+                if (window.supabaseManager) {
+                    window.supabaseManager.onAccountSaved(!id ? newAcc : existing, !id);
+                }
                 closeModal('modal-account');
                 renderAccountsTable();
             } finally {
@@ -4304,6 +4430,9 @@
             };
             appData.logs.unshift(logEntry);
             saveData();
+            if (window.supabaseManager) {
+                window.supabaseManager.onLogAdded(logEntry);
+            }
         }
 
         function toast(message, type = 'success') {

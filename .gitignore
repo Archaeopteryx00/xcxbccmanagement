@@ -14,6 +14,7 @@ supabase/.temp/
 # User JSON Backups (protecting private user data)
 backup/
 backups/
+*_backup*.html
 
 # System / logs
 npm-debug.log*
