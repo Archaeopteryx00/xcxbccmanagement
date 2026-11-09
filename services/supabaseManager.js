@@ -87,7 +87,8 @@ function ensureSdkLoaded() {
                     currentUser = session?.user || null;
                     updateCloudUI();
 
-                    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+                    if (event === 'SIGNED_IN' && session) {
+                        // User explicitly signed in via form
                         await syncFromCloud(false);
                     } else if (event === 'SIGNED_OUT') {
                         currentUser = null;
