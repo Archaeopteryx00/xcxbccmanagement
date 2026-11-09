@@ -140,42 +140,30 @@ function ensureSdkLoaded() {
     }
 
     // -------------------------------------------------------------------------
-    // 3. UI Status & Modals
+    // 3. UI Status & Mandated Login Gate
     // -------------------------------------------------------------------------
     function updateCloudUI() {
+        const authScreen = document.getElementById('auth-screen');
+        const appRoot = document.getElementById('app-root');
         const badge = document.getElementById('cloud-status-badge');
-        const dot = document.getElementById('cloud-status-dot');
         const text = document.getElementById('cloud-status-text');
-        const syncBtn = document.getElementById('cloud-sync-btn');
-        const authBtn = document.getElementById('cloud-auth-btn');
-
-        if (!badge || !dot || !text) return;
 
         if (currentUser) {
-            badge.className = 'inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200';
-            dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse';
-            const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'Operator';
-            text.textContent = `Cloud (${emailPrefix})`;
-            badge.title = `Terkoneksi ke Supabase Cloud (${currentUser.email})`;
+            // Pengguna sudah terautentikasi: sembunyikan layar login, buka app utama
+            if (authScreen) authScreen.classList.add('hidden');
+            if (appRoot) appRoot.classList.remove('hidden');
 
-            if (syncBtn) syncBtn.classList.remove('hidden');
-            if (authBtn) {
-                authBtn.textContent = 'Logout';
-                authBtn.title = `Logout dari ${currentUser.email}`;
-                authBtn.onclick = handleLogout;
+            if (text) {
+                const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'Operator';
+                text.textContent = `Cloud (${emailPrefix})`;
+            }
+            if (badge) {
+                badge.title = `Terkoneksi ke Supabase Cloud (${currentUser.email})`;
             }
         } else {
-            badge.className = 'inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium bg-neutral-100 text-neutral-600 border border-neutral-200';
-            dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5';
-            text.textContent = 'LocalStorage Mode';
-            badge.title = 'Data saat ini hanya tersimpan di browser perangkat ini';
-
-            if (syncBtn) syncBtn.classList.add('hidden');
-            if (authBtn) {
-                authBtn.textContent = 'Login Cloud';
-                authBtn.title = 'Masuk untuk sinkronisasi multi-perangkat';
-                authBtn.onclick = openAuthModal;
-            }
+            // Belum login: Tampilkan gerbang login mandatory, sembunyikan aplikasi utama
+            if (authScreen) authScreen.classList.remove('hidden');
+            if (appRoot) appRoot.classList.add('hidden');
         }
 
         if (window.lucide && typeof lucide.createIcons === 'function') {
@@ -185,10 +173,10 @@ function ensureSdkLoaded() {
 
     function openAuthModal() {
         setAuthTab('login');
+        const authScreen = document.getElementById('auth-screen');
+        if (authScreen) authScreen.classList.remove('hidden');
         const errDiv = document.getElementById('auth-error-msg');
         if (errDiv) errDiv.classList.add('hidden');
-        const modal = document.getElementById('modal-auth');
-        if (modal) modal.classList.remove('hidden');
 
         // Ensure SDK is ready in background
         if (!getClient()) {
@@ -197,8 +185,9 @@ function ensureSdkLoaded() {
     }
 
     function closeAuthModal() {
-        const modal = document.getElementById('modal-auth');
-        if (modal) modal.classList.add('hidden');
+        if (!currentUser) return; // Tidak boleh ditutup jika belum login!
+        const authScreen = document.getElementById('auth-screen');
+        if (authScreen) authScreen.classList.add('hidden');
     }
 
     function setAuthTab(tab) {
@@ -211,14 +200,14 @@ function ensureSdkLoaded() {
         if (errDiv) errDiv.classList.add('hidden');
 
         if (tab === 'login') {
-            if (tabLogin) tabLogin.className = 'flex-1 py-2.5 text-center text-neutral-900 border-b-2 border-neutral-900 transition-all font-semibold';
-            if (tabReg) tabReg.className = 'flex-1 py-2.5 text-center text-neutral-500 hover:text-neutral-900 border-b-2 border-transparent transition-all font-medium';
-            if (submitBtn) submitBtn.textContent = 'Masuk ke Cloud';
-            if (infoMsg) infoMsg.textContent = 'Masuk dengan akun yang sama di perangkat mana pun agar data selalu tersinkronisasi.';
+            if (tabLogin) tabLogin.className = 'flex-1 py-2 text-center text-neutral-900 bg-white rounded-md font-bold shadow-sm transition-all';
+            if (tabReg) tabReg.className = 'flex-1 py-2 text-center text-neutral-500 hover:text-neutral-900 font-medium transition-all';
+            if (submitBtn) submitBtn.innerHTML = '<span>Masuk ke Cloud Database</span>';
+            if (infoMsg) infoMsg.textContent = 'Aplikasi ini menggunakan database PostgreSQL di Cloud. Masuk untuk mengakses data akun, cabang, dan klaim Anda secara otomatis.';
         } else {
-            if (tabLogin) tabLogin.className = 'flex-1 py-2.5 text-center text-neutral-500 hover:text-neutral-900 border-b-2 border-transparent transition-all font-medium';
-            if (tabReg) tabReg.className = 'flex-1 py-2.5 text-center text-neutral-900 border-b-2 border-neutral-900 transition-all font-semibold';
-            if (submitBtn) submitBtn.textContent = 'Daftar Akun Operator';
+            if (tabLogin) tabLogin.className = 'flex-1 py-2 text-center text-neutral-500 hover:text-neutral-900 font-medium transition-all';
+            if (tabReg) tabReg.className = 'flex-1 py-2 text-center text-neutral-900 bg-white rounded-md font-bold shadow-sm transition-all';
+            if (submitBtn) submitBtn.innerHTML = '<span>Daftar Akun Operator</span>';
             if (infoMsg) infoMsg.textContent = 'Pendaftaran akun operator baru untuk akses database cloud Supabase.';
         }
     }
@@ -231,12 +220,11 @@ function ensureSdkLoaded() {
         if (errDiv) errDiv.classList.add('hidden');
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Menghubungkan...';
+            submitBtn.innerHTML = '<span class="animate-spin inline-block mr-1">↻</span><span>Menghubungkan ke Cloud...</span>';
         }
 
         let client = getClient();
         if (!client) {
-            if (submitBtn) submitBtn.textContent = 'Memuat SDK Supabase...';
             await ensureSdkLoaded();
             client = getClient();
         }
@@ -244,11 +232,11 @@ function ensureSdkLoaded() {
         if (!client) {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = activeAuthTab === 'login' ? 'Masuk ke Cloud' : 'Daftar Akun Operator';
+                submitBtn.innerHTML = '<span>Masuk ke Cloud Database</span>';
             }
             if (errDiv) {
-                errDiv.className = 'p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-[11px] text-rose-700 font-medium';
-                errDiv.textContent = 'Gagal memuat SDK Supabase. Pastikan file services/supabase.js tersedia atau tidak ada ekstensi pemblokir skrip.';
+                errDiv.className = 'p-3 bg-rose-50 rounded-xl border border-rose-200 text-[11px] text-rose-700 font-medium';
+                errDiv.textContent = 'Gagal memuat SDK Supabase. Pastikan koneksi internet aktif atau layanan Supabase dapat diakses.';
                 errDiv.classList.remove('hidden');
             }
             return;
@@ -262,10 +250,9 @@ function ensureSdkLoaded() {
                 const { data, error } = await client.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 currentUser = data.user;
-                closeAuthModal();
                 updateCloudUI();
                 if (typeof window.toast === 'function') {
-                    window.toast(`Berhasil masuk sebagai ${email}. Menyinkronkan data cloud...`, 'success');
+                    window.toast(`Berhasil masuk sebagai ${email}. Mengambil data dari Cloud...`, 'success');
                 }
                 await syncFromCloud(false);
             } else {
@@ -274,15 +261,14 @@ function ensureSdkLoaded() {
 
                 if (data.session) {
                     currentUser = data.user;
-                    closeAuthModal();
                     updateCloudUI();
                     if (typeof window.toast === 'function') {
-                        window.toast(`Akun berhasil dibuat! Menginisialisasi cloud...`, 'success');
+                        window.toast(`Akun berhasil dibuat! Terkoneksi ke Cloud...`, 'success');
                     }
                     await syncFromCloud(false);
                 } else {
                     if (errDiv) {
-                        errDiv.className = 'p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-800 font-medium';
+                        errDiv.className = 'p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 font-medium';
                         errDiv.innerHTML = `Pendaftaran berhasil! Tautan konfirmasi telah dikirimkan ke <strong>${esc(email)}</strong>. Silakan periksa inbox/spam dan klik tautan konfirmasi sebelum login.`;
                         errDiv.classList.remove('hidden');
                     }
@@ -291,20 +277,24 @@ function ensureSdkLoaded() {
         } catch (err) {
             console.error('[Supabase Auth Error]', err);
             if (errDiv) {
-                errDiv.className = 'p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-[11px] text-rose-700 font-medium';
+                errDiv.className = 'p-3 bg-rose-50 rounded-xl border border-rose-200 text-[11px] text-rose-700 font-medium';
                 errDiv.textContent = err.message || 'Gagal autentikasi ke Supabase.';
                 errDiv.classList.remove('hidden');
             }
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = activeAuthTab === 'login' ? 'Masuk ke Cloud' : 'Daftar Akun Operator';
+                if (activeAuthTab === 'login') {
+                    submitBtn.innerHTML = '<span>Masuk ke Cloud Database</span>';
+                } else {
+                    submitBtn.innerHTML = '<span>Daftar Akun Operator</span>';
+                }
             }
         }
     }
 
     async function handleLogout() {
-        if (!confirm(`Logout dari akun Supabase (${currentUser?.email})? Data offline lokal tetap tersimpan.`)) return;
+        if (!confirm(`Logout dari akun Supabase Cloud (${currentUser?.email})?`)) return;
         const client = getClient();
         try {
             if (client) await client.auth.signOut();
@@ -312,8 +302,18 @@ function ensureSdkLoaded() {
             console.warn('[SupabaseManager] Logout error:', err);
         } finally {
             currentUser = null;
+            if (window.appData) {
+                window.appData.branches = [];
+                window.appData.accounts = [];
+                window.appData.updates = [];
+                window.appData.claims = [];
+                window.appData.account_sources = [];
+                window.appData.account_topups = [];
+                window.appData.vc_transactions = [];
+                window.appData.logs = [];
+            }
             updateCloudUI();
-            if (typeof window.toast === 'function') window.toast('Berhasil logout dari Supabase Cloud.');
+            if (typeof window.toast === 'function') window.toast('Berhasil logout dari sistem Cloud.');
         }
     }
 
@@ -851,6 +851,15 @@ function ensureSdkLoaded() {
         onVcTransactionDeleted,
         onLogAdded
     };
+
+    // Auto-initialize Supabase session & cloud sync on load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            init().catch(err => console.error('[SupabaseManager] Init failed:', err));
+        });
+    } else {
+        init().catch(err => console.error('[SupabaseManager] Init failed:', err));
+    }
 
     console.log('[SupabaseManager] Module loaded.');
 })();

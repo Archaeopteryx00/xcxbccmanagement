@@ -126,7 +126,60 @@
     <!-- XCX Supabase Cloud Sync Manager -->
     <script src="services/supabaseManager.js"></script>
 </head>
-<body class="h-screen flex overflow-hidden select-none">
+<body class="h-screen flex overflow-hidden select-none bg-neutral-900 text-neutral-900">
+
+    <!-- FULLSCREEN MANDATORY LOGIN GATE (GERBANG UTAMA) -->
+    <div id="auth-screen" class="fixed inset-0 bg-neutral-950 flex items-center justify-center p-4 z-50">
+        <div class="bg-surface rounded-2xl border border-neutral-800 w-full max-w-md overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 bg-neutral-900 text-white rounded-xl flex items-center justify-center font-bold text-lg mx-auto border border-neutral-800">
+                    X
+                </div>
+                <h1 class="text-lg font-bold text-neutral-900 tracking-tight">XCX BBC Management</h1>
+                <p class="text-xs text-neutral-500">Cloud Database System (Supabase PostgreSQL)</p>
+            </div>
+
+            <!-- Tab: Login / Register -->
+            <div class="flex border-b border-muted bg-neutral-50 rounded-lg p-1 text-xs">
+                <button type="button" id="auth-tab-login" onclick="window.supabaseManager?.setAuthTab('login')"
+                    class="flex-1 py-2 text-center text-neutral-900 bg-white rounded-md font-bold shadow-sm transition-all">
+                    Masuk (Login)
+                </button>
+                <button type="button" id="auth-tab-register" onclick="window.supabaseManager?.setAuthTab('register')"
+                    class="flex-1 py-2 text-center text-neutral-500 hover:text-neutral-900 font-medium transition-all">
+                    Daftar Akun Baru
+                </button>
+            </div>
+
+            <form id="form-auth" onsubmit="window.supabaseManager?.handleAuthSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Email Operator</label>
+                    <input type="email" id="auth-email" required placeholder="operator@xcx.com"
+                        class="w-full p-2.5 border border-muted rounded-xl bg-surface focus:outline-none focus:border-neutral-900 text-xs">
+                </div>
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Password</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••"
+                        class="w-full p-2.5 border border-muted rounded-xl bg-surface focus:outline-none focus:border-neutral-900 text-xs">
+                </div>
+
+                <div id="auth-info-msg" class="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-[11px] text-neutral-600 leading-relaxed">
+                    Aplikasi ini menggunakan database PostgreSQL di Cloud. Masuk untuk mengakses data akun, cabang, dan klaim Anda secara otomatis.
+                </div>
+
+                <div id="auth-error-msg" class="p-3 bg-rose-50 rounded-xl border border-rose-200 text-[11px] text-rose-700 font-medium hidden">
+                </div>
+
+                <button type="submit" id="auth-submit-btn"
+                    class="w-full py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2">
+                    <span>Masuk ke Cloud Database</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP ROOT (Hidden sampai terautentikasi) -->
+    <div id="app-root" class="h-screen w-full flex overflow-hidden select-none hidden">
 
     <!-- Sidebar Navigation -->
     <aside id="sidebar" class="w-60 bg-surface border-r border-muted flex flex-col justify-between shrink-0 transition-all duration-300 z-20">
@@ -2163,6 +2216,10 @@
             }
             initSidebar();
             switchTab('dashboard');
+
+            if (window.supabaseManager && typeof window.supabaseManager.init === 'function') {
+                window.supabaseManager.init().catch(e => console.warn('[initApp] Supabase init:', e));
+            }
         }
 
         function saveData() {
@@ -4620,5 +4677,6 @@
             initApp();
         };
     </script>
+    </div><!-- End #app-root -->
 </body>
 </html>
