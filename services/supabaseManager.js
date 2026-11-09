@@ -499,6 +499,33 @@ function ensureSdkLoaded() {
             console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
             const app = customData || window.appData || {};
 
+            // ---- Try server-side RPC first (atomic, constraint-safe) ----
+            if (typeof window.showLoading === 'function') {
+                window.showLoading('Memulihkan ke Cloud', 'Mengirim data ke server...', 20);
+            }
+            console.log('[SupabaseManager] Calling restore_full_backup RPC...');
+            const { data: rpcData, error: rpcErr } = await client.rpc('restore_full_backup', {
+                payload: app
+            });
+            if (rpcErr) {
+                console.warn('[SupabaseManager] RPC restore_full_backup failed, falling back to client upsert:', rpcErr.message);
+                // fall through to client-side upsert below
+            } else if (rpcData && rpcData.success === false) {
+                console.warn('[SupabaseManager] RPC returned error:', rpcData.error);
+                // fall through to client-side upsert below
+            } else if (rpcData && rpcData.success === true) {
+                console.log('[SupabaseManager] RPC restore OK:', rpcData.counts);
+                if (typeof window.updateLoading === 'function') {
+                    window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 95);
+                }
+                await syncFromCloud(false);
+                console.log('[SupabaseManager] uploadFullData complete (via RPC).');
+                return { success: true };
+            }
+
+            // ---- Fallback: client-side delete-then-insert ----
+            console.log('[SupabaseManager] Using client-side fallback upsert...');
+
             // ---- STEP 1: Branches ----
             if (typeof window.showLoading === 'function') {
                 window.showLoading('Mengunggah ke Cloud', 'Menyimpan data cabang... (1/8)', 10);
