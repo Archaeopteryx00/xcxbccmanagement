@@ -326,6 +326,12 @@
                     <i data-lucide="download" class="w-3 h-3"></i>
                     <span>Install App</span>
                 </button>
+                <!-- Cloud Sync Button -->
+                <button id="cloud-sync-btn" onclick="window.supabaseManager?.syncFromCloud(true)" title="Sinkronkan data dari Cloud"
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-700 transition-all shadow-sm">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                    <span>Sync</span>
+                </button>
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-800 border border-neutral-200">
                     <span class="w-1.5 h-1.5 rounded-full bg-neutral-900 mr-1.5"></span>
                     Account Source & Reward Tracking

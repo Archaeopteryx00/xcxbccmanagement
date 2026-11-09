@@ -86,12 +86,20 @@ function ensureSdkLoaded() {
                     currentUser = session?.user || null;
                     updateCloudUI();
 
-                    if (event === 'SIGNED_IN' && session) {
+                    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
                         await syncFromCloud(false);
                     } else if (event === 'SIGNED_OUT') {
                         currentUser = null;
                         updateCloudUI();
                         if (typeof window.toast === 'function') window.toast('Sesi berakhir. Kembali ke mode LocalStorage.', 'info');
+                    }
+                });
+
+                // Sync when tab becomes visible again (e.g. switching from laptop to phone)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && currentUser && !isSyncing) {
+                        console.log('[SupabaseManager] Tab visible — triggering background sync...');
+                        syncFromCloud(false).catch(err => console.warn('[SupabaseManager] visibilitychange sync error:', err));
                     }
                 });
 
