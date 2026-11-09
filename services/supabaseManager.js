@@ -145,30 +145,39 @@ function ensureSdkLoaded() {
     function updateCloudUI() {
         const authScreen = document.getElementById('auth-screen');
         const appRoot = document.getElementById('app-root');
-        const badge = document.getElementById('cloud-status-badge');
-        const text = document.getElementById('cloud-status-text');
+        const userAvatar = document.getElementById('user-avatar');
+        const userEmailDisplay = document.getElementById('user-email-display');
+        const userStatusLabel = document.getElementById('user-status-label');
 
         if (currentUser) {
-            // Pengguna sudah terautentikasi: sembunyikan layar login, buka app utama
+            // Authenticated: hide login screen, show app
             if (authScreen) authScreen.classList.add('hidden');
             if (appRoot) appRoot.classList.remove('hidden');
 
-            if (text) {
-                const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'Operator';
-                text.textContent = `Cloud (${emailPrefix})`;
-            }
-            if (badge) {
-                badge.title = `Terkoneksi ke Supabase Cloud (${currentUser.email})`;
-            }
+            // Update sidebar user footer
+            const email = currentUser.email || 'Operator';
+            const initials = email.substring(0, 2).toUpperCase();
+            if (userAvatar) userAvatar.textContent = initials;
+            if (userEmailDisplay) userEmailDisplay.textContent = email;
+            if (userStatusLabel) userStatusLabel.textContent = '✓ Terkoneksi ke Cloud';
         } else {
-            // Belum login: Tampilkan gerbang login mandatory, sembunyikan aplikasi utama
+            // Not authenticated: show login gate, hide app
             if (authScreen) authScreen.classList.remove('hidden');
             if (appRoot) appRoot.classList.add('hidden');
+
+            // Reset sidebar user footer
+            if (userAvatar) userAvatar.textContent = '?';
+            if (userEmailDisplay) userEmailDisplay.textContent = 'Belum login';
+            if (userStatusLabel) userStatusLabel.textContent = 'Cloud Database';
         }
 
         if (window.lucide && typeof lucide.createIcons === 'function') {
             lucide.createIcons();
         }
+    }
+
+    async function signOut() {
+        await handleLogout();
     }
 
     function openAuthModal() {
@@ -1036,7 +1045,8 @@ function ensureSdkLoaded() {
         onSettingsSaved,
         onVcTransactionSaved,
         onVcTransactionDeleted,
-        onLogAdded
+        onLogAdded,
+        signOut
     };
 
     // Auto-initialize Supabase session & cloud sync on load

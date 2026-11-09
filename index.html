@@ -295,11 +295,15 @@
         <!-- User Role Footer -->
         <div class="p-3 border-t border-muted bg-neutral-50/50 shrink-0">
             <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center font-bold text-[10px] text-neutral-700">AD</div>
-                <div class="overflow-hidden">
-                    <p class="text-xs font-medium truncate">Administrator</p>
-                    <p class="text-[10px] text-neutral-400 truncate">PRD v1.2 Enabled</p>
+                <div id="user-avatar" class="w-7 h-7 rounded-full bg-neutral-900 flex items-center justify-center font-bold text-[10px] text-white shrink-0">?</div>
+                <div class="overflow-hidden flex-1 min-w-0">
+                    <p id="user-email-display" class="text-xs font-medium truncate text-neutral-900">Belum login</p>
+                    <p id="user-status-label" class="text-[10px] text-neutral-400 truncate">Cloud Database</p>
                 </div>
+                <button onclick="window.supabaseManager?.signOut()" title="Logout"
+                    class="shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-rose-100 hover:text-rose-600 text-neutral-400 transition-all">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                </button>
             </div>
         </div>
     </aside>
