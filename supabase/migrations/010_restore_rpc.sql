@@ -381,3 +381,4 @@ $$;
 
 -- Grant execute to authenticated users
 grant execute on function public.restore_full_backup(jsonb) to authenticated;
+
