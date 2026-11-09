@@ -95,9 +95,12 @@ function ensureSdkLoaded() {
                     }
                 });
 
-                // Sync when tab becomes visible again (e.g. switching from laptop to phone)
+                // Sync when tab becomes visible again, throttled to at most once every 60s
+                let lastSyncTime = 0;
                 document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible' && currentUser && !isSyncing) {
+                    const now = Date.now();
+                    if (document.visibilityState === 'visible' && currentUser && !isSyncing && (now - lastSyncTime > 60000)) {
+                        lastSyncTime = now;
                         console.log('[SupabaseManager] Tab visible — triggering background sync...');
                         syncFromCloud(false).catch(err => console.warn('[SupabaseManager] visibilitychange sync error:', err));
                     }
@@ -350,7 +353,7 @@ function ensureSdkLoaded() {
         if (syncBtn) {
             syncBtn.classList.add('opacity-50', 'pointer-events-none');
             const span = syncBtn.querySelector('span');
-            const icon = syncBtn.querySelector('i');
+            const icon = syncBtn.querySelector('i, svg');
             if (span) span.textContent = 'Syncing...';
             if (icon) icon.classList.add('animate-spin');
         }
@@ -386,8 +389,8 @@ function ensureSdkLoaded() {
                 window.updateLoading('Sinkronisasi Cloud', 'Mengambil data cabang, akun, dan klaim...', 60);
             }
 
-            // Cloud has data: fetch all tables in parallel
-            const [branchesRes, accountsRes, updatesRes, claimsRes, sourcesRes, topupsRes, vcRes, logsRes, settingsRes] = await Promise.all([
+            // Cloud has data: fetch all tables in parallel with a 15-second safety timeout
+            const fetchPromise = Promise.all([
                 client.from('branches').select('*').order('created_at', { ascending: true }),
                 client.from('accounts').select('*').order('created_at', { ascending: true }),
                 client.from('updates').select('*').order('created_at', { ascending: true }),
@@ -398,6 +401,11 @@ function ensureSdkLoaded() {
                 client.from('activity_logs').select('*').order('created_at', { ascending: true }),
                 client.from('settings').select('*')
             ]);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Koneksi sinkronisasi timeout 15 detik')), 15000)
+            );
+
+            const [branchesRes, accountsRes, updatesRes, claimsRes, sourcesRes, topupsRes, vcRes, logsRes, settingsRes] = await Promise.race([fetchPromise, timeoutPromise]);
 
             if (branchesRes.error) throw branchesRes.error;
             if (accountsRes.error) throw accountsRes.error;
@@ -474,7 +482,7 @@ function ensureSdkLoaded() {
             if (syncBtn) {
                 syncBtn.classList.remove('opacity-50', 'pointer-events-none');
                 const span = syncBtn.querySelector('span');
-                const icon = syncBtn.querySelector('i');
+                const icon = syncBtn.querySelector('i, svg');
                 if (span) span.textContent = 'Sync';
                 if (icon) icon.classList.remove('animate-spin');
             }
