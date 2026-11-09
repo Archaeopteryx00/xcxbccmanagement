@@ -16,21 +16,6 @@
     // -------------------------------------------------------------------------
     // 1. Dynamic SDK Loader & Lazy Client Factory
     // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-// 1. Utility helpers
-// -------------------------------------------------------------------------
-/**
- * Safely set innerText if element exists.
- */
-function safeSetText(el, txt) {
-  if (el) el.innerText = txt;
-}
-/**
- * Safely set innerHTML if element exists.
- */
-function safeSetHTML(el, html) {
-  if (el) el.innerHTML = html;
-}
 
 function ensureSdkLoaded() {
         if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -393,10 +378,28 @@ function ensureSdkLoaded() {
                 window.appData.branches = branchesRes.data || [];
                 window.appData.accounts = accountsRes.data || [];
                 window.appData.updates = updatesRes.data || [];
-                window.appData.claims = claimsRes.data || [];
-                window.appData.account_sources = sourcesRes.data || [];
-                window.appData.account_topups = topupsRes.data || [];
-                window.appData.vc_transactions = vcRes.data || [];
+                window.appData.claims = (claimsRes.data || []).map(c => ({
+                    ...c,
+                    dm_claimed: Number(c.reward_amount_claimed ?? c.dm_claimed ?? 0)
+                }));
+                window.appData.account_sources = (sourcesRes.data || []).map(s => ({
+                    ...s,
+                    nominal: Number(s.nominal || 0),
+                    bonus_amount: Number(s.bonus_amount || 0),
+                    total_received: Number(s.total_received || 0)
+                }));
+                window.appData.account_topups = (topupsRes.data || []).map(t => ({
+                    ...t,
+                    nominal: Number(t.nominal || 0),
+                    bonus_amount: Number(t.bonus_amount || 0),
+                    total_received: Number(t.total_received || 0)
+                }));
+                window.appData.vc_transactions = (vcRes.data || []).map(v => ({
+                    ...v,
+                    date: v.transaction_date || v.date,
+                    vc_earned: Number(v.vc_earned || 0),
+                    vc_spent: Number(v.vc_spent || 0)
+                }));
 
                 if (logsRes.data) {
                     window.appData.logs = logsRes.data.map(l => ({
@@ -765,6 +768,43 @@ function ensureSdkLoaded() {
         });
     }
 
+    function onSettingsSaved(settings) {
+        const client = getClient();
+        if (!client || !currentUser || !settings) return;
+        const rows = Object.entries(settings).map(([k, v]) => ({
+            key: k,
+            value: v
+        }));
+        client.from('settings').upsert(rows).then(({ error }) => {
+            if (error) console.error('[Supabase Cloud Mutation Error: Settings]', error);
+        });
+    }
+
+    function onVcTransactionSaved(tx) {
+        const client = getClient();
+        if (!client || !currentUser || !tx) return;
+        const row = {
+            transaction_id: tx.transaction_id,
+            account_id: tx.account_id || null,
+            source: tx.source || 'Manual',
+            vc_earned: Number(tx.vc_earned || 0),
+            vc_spent: Number(tx.vc_spent || 0),
+            transaction_date: tx.transaction_date || tx.date || new Date().toISOString().split('T')[0],
+            description: tx.description || null
+        };
+        client.from('vc_transactions').upsert(row).then(({ error }) => {
+            if (error) console.error('[Supabase Cloud Mutation Error: VC Transaction]', error);
+        });
+    }
+
+    function onVcTransactionDeleted(txId) {
+        const client = getClient();
+        if (!client || !currentUser || !txId) return;
+        client.from('vc_transactions').delete().eq('transaction_id', txId).then(({ error }) => {
+            if (error) console.error('[Supabase Cloud Mutation Error: Delete VC Transaction]', error);
+        });
+    }
+
     function onLogAdded(log) {
         const client = getClient();
         if (!client || !currentUser || !log) return;
@@ -806,6 +846,9 @@ function ensureSdkLoaded() {
         onBulkClaim,
         onSourceSaved,
         onTopupSaved,
+        onSettingsSaved,
+        onVcTransactionSaved,
+        onVcTransactionDeleted,
         onLogAdded
     };
 
