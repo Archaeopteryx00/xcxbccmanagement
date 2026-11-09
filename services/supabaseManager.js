@@ -504,17 +504,32 @@ function ensureSdkLoaded() {
                 window.showLoading('Memulihkan ke Cloud', 'Mengirim data ke server...', 20);
             }
             console.log('[SupabaseManager] Calling restore_full_backup RPC...');
-            const { data: rpcData, error: rpcErr } = await client.rpc('restore_full_backup', {
-                payload: app
-            });
+            // Wrap RPC in a 45-second timeout so it doesn't hang silently
+            let rpcData, rpcErr;
+            try {
+                const rpcResult = await Promise.race([
+                    client.rpc('restore_full_backup', { payload: app }),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('RPC timeout setelah 45 detik')), 45000)
+                    )
+                ]);
+                rpcData = rpcResult.data;
+                rpcErr  = rpcResult.error;
+            } catch (timeoutErr) {
+                rpcErr = { message: timeoutErr.message };
+            }
+
             if (rpcErr) {
-                console.warn('[SupabaseManager] RPC restore_full_backup failed, falling back to client upsert:', rpcErr.message);
+                console.warn('[SupabaseManager] RPC failed, falling back to client upsert:', rpcErr.message);
+                if (typeof window.updateLoading === 'function') {
+                    window.updateLoading('Mengunggah ke Cloud', 'Fallback: menyimpan data cabang... (1/8)', 10);
+                }
                 // fall through to client-side upsert below
             } else if (rpcData && rpcData.success === false) {
-                console.warn('[SupabaseManager] RPC returned error:', rpcData.error);
-                // fall through to client-side upsert below
+                console.warn('[SupabaseManager] RPC returned error:', rpcData.error, rpcData.detail);
+                throw new Error('Restore gagal di server: ' + rpcData.error);
             } else if (rpcData && rpcData.success === true) {
-                console.log('[SupabaseManager] RPC restore OK:', rpcData.counts);
+                console.log('[SupabaseManager] RPC restore OK:', JSON.stringify(rpcData.counts));
                 if (typeof window.updateLoading === 'function') {
                     window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 95);
                 }
