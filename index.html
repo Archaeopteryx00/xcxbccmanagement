@@ -190,18 +190,17 @@
                             <i data-lucide="coins" class="w-3.5 h-3.5"></i>
                             <span>Currency Overview</span>
                         </button>
-                        <button onclick="switchTab('vc-management')" id="nav-vc-management" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
-                            <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                            <span>VC Balance</span>
-                        </button>
-                        <button onclick="switchTab('vc-transactions')" id="nav-vc-transactions" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
-                            <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
-                            <span>VC History</span>
+                        <button onclick="openGiftMainModal()" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-neutral-900 text-white hover:bg-neutral-800 shadow-sm transition-all my-1">
+                            <i data-lucide="gift" class="w-3.5 h-3.5 text-white"></i>
+                            <span>Gift ke Akun Utama</span>
                         </button>
                         <button onclick="switchTab('calculator')" id="nav-calculator" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-neutral-100 text-neutral-700">
                             <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
                             <span>Diamond Calculator</span>
                         </button>
+                        <!-- Hidden legacy VC buttons for compatibility -->
+                        <button onclick="switchTab('vc-management')" id="nav-vc-management" class="hidden"></button>
+                        <button onclick="switchTab('vc-transactions')" id="nav-vc-transactions" class="hidden"></button>
                     </div>
                 </div>
 
@@ -323,13 +322,17 @@
                         <p class="text-[11px] text-neutral-500">Monthly tracking starts from zero on November 1, 2026. Lifetime balances and history are never reset.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <i data-lucide="calendar" class="w-4 h-4 text-neutral-500"></i>
+                        <button onclick="openGiftMainModal()" class="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all">
+                            <i data-lucide="gift" class="w-3.5 h-3.5"></i>
+                            <span>Gift ke Akun Utama</span>
+                        </button>
+                        <i data-lucide="calendar" class="w-4 h-4 text-neutral-500 ml-1"></i>
                         <select id="dash-month-select" onchange="onMonthFilterChange(this.value)" class="py-1.5 px-2 border border-muted rounded-lg text-xs bg-surface font-semibold focus:outline-none focus:border-neutral-900"></select>
                     </div>
                 </div>
 
-                <!-- KPI Bar 1: Monthly Earned Metrics (Selected Month) -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <!-- KPI Bar 1: Monthly Earned & Gift Metrics (Selected Month) -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">DM Earned</span>
                         <div class="text-base font-bold text-neutral-900" id="kpi-month-dm">0</div>
@@ -343,58 +346,61 @@
                     </div>
 
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Earned</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-vc-earned">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Update + Quest Rewards</div>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">BBCoin Gifted</span>
+                        <div class="text-base font-bold text-neutral-900" id="kpi-month-bbc-gifted">0</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5">Ditransfer ke Utama</div>
                     </div>
 
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">VC Spent</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-vc-spent">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Converted to 💎</div>
-                    </div>
-
-                    <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Diamond Converted</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-month-diamonds">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">1 VC = 1 💎</div>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Diamond Utama</span>
+                        <div class="text-base font-bold text-neutral-900" id="kpi-month-diamonds">0 💎</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5">5 BBC = 1 💎</div>
                     </div>
 
                     <div class="bg-surface p-3.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-300 block mb-1">Est. 💎 (Month)</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-300 block mb-1">Est. 💎 (Bulan ini)</span>
                         <div class="text-base font-bold text-white" id="kpi-month-est-diamonds">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5" id="kpi-month-est-label">This month</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5" id="kpi-month-est-label">Potensial Farm</div>
                     </div>
+
+                    <!-- Hidden compatibility targets for legacy scripts -->
+                    <div id="kpi-month-vc-earned" class="hidden">0</div>
+                    <div id="kpi-month-vc-spent" class="hidden">0</div>
                 </div>
 
                 <!-- Balance Cards: Monthly Earnings / Lifetime Earnings / Current Balance -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">DM Balance</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">DM Farming Balance</span>
                         <div class="space-y-1.5 text-[11px]">
-                            <div class="flex justify-between"><span class="text-neutral-500">Monthly Earnings</span><span class="font-bold text-neutral-900" id="bal-dm-monthly">0 DM</span></div>
-                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Earnings</span><span class="font-bold text-neutral-900" id="bal-dm-lifetime">0 DM</span></div>
-                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Current Balance</span><span class="font-bold text-neutral-900" id="bal-dm-current">0 DM</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Monthly Farmed</span><span class="font-bold text-neutral-900" id="bal-dm-monthly">0 DM</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Farmed</span><span class="font-bold text-neutral-900" id="bal-dm-lifetime">0 DM</span></div>
+                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Total DM Terkumpul</span><span class="font-bold text-neutral-900" id="bal-dm-current">0 DM</span></div>
                         </div>
                     </div>
 
                     <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">BBCoin Balance</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">BBCoin Balance (Sub-Akun)</span>
                         <div class="space-y-1.5 text-[11px]">
-                            <div class="flex justify-between"><span class="text-neutral-500">Monthly Earnings</span><span class="font-bold text-neutral-900" id="bal-bb-monthly">0 BBC</span></div>
-                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Earnings</span><span class="font-bold text-neutral-900" id="bal-bb-lifetime">0 BBC</span></div>
-                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Current Balance</span><span class="font-bold text-neutral-900" id="bal-bb-current">0 BBC</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Farmed</span><span class="font-bold text-neutral-900" id="bal-bb-lifetime">0 BBC</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Total Gifted ke Utama</span><span class="font-bold text-neutral-900 text-rose-600" id="bal-bb-monthly">-0 BBC</span></div>
+                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Sisa Saldo Tersedia</span><span class="font-bold text-emerald-600" id="bal-bb-current">0 BBC</span></div>
                         </div>
                     </div>
 
                     <div class="bg-surface p-4 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">Vanguard Coin Balance</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-2">Akun Utama (Main Account 💎)</span>
                         <div class="space-y-1.5 text-[11px]">
-                            <div class="flex justify-between"><span class="text-neutral-500">Monthly Earnings</span><span class="font-bold text-neutral-900" id="bal-vc-monthly">0 VC</span></div>
-                            <div class="flex justify-between"><span class="text-neutral-500">Lifetime Earnings</span><span class="font-bold text-neutral-900" id="bal-vc-lifetime">0 VC</span></div>
-                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Current Balance (Carryover)</span><span class="font-bold text-neutral-900" id="bal-vc-current">0 VC</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Diamond Masuk (Bulan ini)</span><span class="font-bold text-neutral-900" id="bal-main-monthly">0 💎</span></div>
+                            <div class="flex justify-between"><span class="text-neutral-500">Total Diamond Diterima</span><span class="font-bold text-neutral-900" id="bal-main-lifetime">0 💎</span></div>
+                            <div class="flex justify-between border-t border-muted pt-1.5"><span class="text-neutral-700 font-semibold">Target Pencapaian Goal</span><span class="font-bold text-neutral-900" id="bal-main-goal">0 / 500 💎</span></div>
                         </div>
                     </div>
+
+                    <!-- Hidden legacy VC elements for compatibility -->
+                    <div id="bal-vc-monthly" class="hidden"></div>
+                    <div id="bal-vc-lifetime" class="hidden"></div>
+                    <div id="bal-vc-current" class="hidden"></div>
                 </div>
 
                 <!-- Lifetime / Status KPIs -->
@@ -412,33 +418,39 @@
                     </div>
 
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Lifetime BBCoin</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Lifetime BBCoin Farmed</span>
                         <div class="text-base font-bold text-neutral-900" id="kpi-total-bbcoin">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">5 DM = 1 💎</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5">Total akumulasi sub-akun</div>
                     </div>
 
                     <div class="bg-surface p-3.5 rounded-xl border border-muted shadow-sm">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Lifetime VC Balance</span>
-                        <div class="text-base font-bold text-neutral-900" id="kpi-current-vc">0</div>
-                        <div class="text-[9px] text-neutral-400 mt-0.5">Carries over monthly</div>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block mb-1">Diamond di Akun Utama</span>
+                        <div class="text-base font-bold text-neutral-900" id="kpi-total-diamonds-gifted">0 💎</div>
+                        <div class="text-[9px] text-neutral-400 mt-0.5">Hasil gift sub-akun (5:1)</div>
+                        <div id="kpi-current-vc" class="hidden">0</div>
                     </div>
                 </div>
 
-                <!-- Combined Diamond Target Progress -->
+                <!-- Main Account Diamond Target Progress -->
                 <div class="bg-surface p-5 rounded-xl border border-muted shadow-sm">
                     <div class="flex justify-between items-center mb-3">
                         <div>
-                            <h3 class="font-bold text-xs text-neutral-900">Combined Main Diamond Goal Target</h3>
-                            <p class="text-[11px] text-neutral-500">Lifetime Accumulated Diamonds from BBCoin (5:1) + Vanguard Coin (1:1)</p>
+                            <h3 class="font-bold text-xs text-neutral-900">Main Account Diamond Target Goal</h3>
+                            <p class="text-[11px] text-neutral-500">Total Diamond yang berhasil ditransfer ke Akun Utama dari gift sub-akun (Rasio: 5 BBCoin = 1 💎)</p>
                         </div>
-                        <span id="target-percentage" class="text-xs font-bold bg-neutral-900 text-white px-2.5 py-1 rounded-md">0%</span>
+                        <div class="flex items-center gap-2">
+                            <span id="target-percentage" class="text-xs font-bold bg-neutral-900 text-white px-2.5 py-1 rounded-md">0%</span>
+                            <button onclick="openGiftMainModal()" class="text-xs font-semibold px-2.5 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 rounded-md flex items-center gap-1 transition-all">
+                                <i data-lucide="plus" class="w-3 h-3"></i> Gift ke Utama
+                            </button>
+                        </div>
                     </div>
                     <div class="w-full bg-neutral-100 rounded-full h-2.5 overflow-hidden flex border border-neutral-200">
-                        <div id="target-progress-bbcoin" class="bg-neutral-900 h-2.5 transition-all duration-500" style="width: 0%" title="From BBCoin"></div>
-                        <div id="target-progress-vc" class="bg-neutral-400 h-2.5 transition-all duration-500" style="width: 0%" title="From VC"></div>
+                        <div id="target-progress-bbcoin" class="bg-neutral-900 h-2.5 transition-all duration-500" style="width: 0%" title="Transferred Diamonds"></div>
+                        <div id="target-progress-vc" class="hidden" style="width: 0%"></div>
                     </div>
                     <div class="flex justify-between text-[11px] text-neutral-500 mt-2">
-                        <span id="target-current-text">0 Diamonds</span>
+                        <span id="target-current-text">0 Diamonds Ditransfer</span>
                         <span id="target-goal-text">Goal: 500 Diamonds</span>
                     </div>
                 </div>
@@ -708,10 +720,13 @@
                     </div>
 
                     <div class="flex items-center gap-2">
+                        <button onclick="openGiftMainModal()" class="bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="gift" class="w-3.5 h-3.5"></i> Gift ke Akun Utama
+                        </button>
                         <button onclick="openAddSourceModal()" class="border border-neutral-900 text-neutral-900 hover:bg-neutral-100 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5">
                             <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Record Source
                         </button>
-                        <button onclick="openAccountModal()" class="bg-brand-900 hover:bg-neutral-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5">
+                        <button onclick="openAccountModal()" class="bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Account
                         </button>
                     </div>
@@ -727,10 +742,10 @@
                                     <th class="px-3.5 py-2.5">Server Code</th>
                                     <th class="px-3.5 py-2.5">Level</th>
                                     <th class="px-3.5 py-2.5">Farming Status</th>
-                                    <th class="px-3.5 py-2.5 text-right">Total DM</th>
-                                    <th class="px-3.5 py-2.5 text-right">Total VC</th>
-                                    <th class="px-3.5 py-2.5 text-center">Double Bonus</th>
-                                    <th class="px-3.5 py-2.5 text-right">Est. Diamonds</th>
+                                    <th class="px-3.5 py-2.5 text-right">Saldo BBC</th>
+                                    <th class="px-3.5 py-2.5 text-right">Gifted ke Utama</th>
+                                    <th class="px-3.5 py-2.5 text-center">First Topup</th>
+                                    <th class="px-3.5 py-2.5 text-right">Sisa Est. 💎</th>
                                     <th class="px-3.5 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -1488,8 +1503,90 @@
 
             <div class="px-6 py-3 border-t border-muted bg-neutral-50 flex flex-wrap justify-between items-center gap-2">
                 <div id="detail-danger-actions" class="flex flex-wrap gap-2"></div>
-                <button onclick="closeModal('modal-account-detail')" class="px-4 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-semibold hover:bg-neutral-800">Close Detail View</button>
+                <div class="flex items-center gap-2">
+                    <button onclick="openGiftMainModal(currentActiveAccountId)" class="px-3.5 py-1.5 bg-neutral-900 text-white rounded-lg text-xs font-semibold hover:bg-neutral-800 flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="gift" class="w-3.5 h-3.5"></i>
+                        <span>Gift ke Akun Utama</span>
+                    </button>
+                    <button onclick="closeModal('modal-account-detail')" class="px-4 py-1.5 border border-muted bg-white text-neutral-800 rounded-lg text-xs font-semibold hover:bg-neutral-100">Close</button>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Gift BBCoin ke Akun Utama -->
+    <div id="modal-gift-main" class="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-surface rounded-xl border border-muted shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div class="px-5 py-3.5 border-b border-muted flex justify-between items-center bg-neutral-50">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-1.5 bg-neutral-900 text-white rounded-lg">
+                        <i data-lucide="gift" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-xs text-neutral-900">Gift BBCoin ke Akun Utama</h3>
+                        <p class="text-[10px] text-neutral-500">Kirim BBCoin dari sub-akun untuk konversi Diamond utama (5 BBC = 1 💎)</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-gift-main')" class="text-neutral-400 hover:text-neutral-700 p-1 rounded-md">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-gift-main" onsubmit="handleSaveGiftToMain(event)" class="p-5 space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-neutral-700 mb-1">Akun Pengirim (Sub-Account)</label>
+                    <select id="gift-account-id" required onchange="onGiftAccountChange()" class="w-full p-2.5 border border-muted rounded-lg bg-surface font-semibold text-xs focus:outline-none focus:border-neutral-900">
+                    </select>
+                    <div class="text-[10px] text-neutral-500 mt-1 flex justify-between">
+                        <span>Saldo Tersedia di Akun ini:</span>
+                        <span id="gift-acc-balance" class="font-bold text-neutral-900">0 BBC</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-neutral-700 mb-1">Nominal BBCoin yang di-Gift</label>
+                    <div class="relative">
+                        <input type="number" id="gift-nominal" required min="1" step="1" value="500" oninput="updateGiftDiamondPreview()" class="w-full p-2.5 border border-muted rounded-lg font-bold text-sm focus:outline-none focus:border-neutral-900 pr-16">
+                        <span class="absolute right-3 top-2.5 text-xs font-semibold text-neutral-400">BBCoin</span>
+                    </div>
+                    <!-- Quick select chips -->
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button type="button" onclick="setGiftNominal(100)" class="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-[10px] font-semibold text-neutral-700">100 BBC (20💎)</button>
+                        <button type="button" onclick="setGiftNominal(250)" class="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-[10px] font-semibold text-neutral-700">250 BBC (50💎)</button>
+                        <button type="button" onclick="setGiftNominal(500)" class="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 rounded text-[10px] font-semibold text-neutral-700">500 BBC (100💎)</button>
+                        <button type="button" onclick="setGiftAllBalance()" class="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 rounded text-[10px] font-bold text-neutral-900">Semua Saldo</button>
+                    </div>
+                </div>
+
+                <!-- Conversion Preview Box -->
+                <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-200 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-medium text-neutral-500 block">Diamond yang Didapat Akun Utama</span>
+                        <span class="text-[9px] text-neutral-400">Rasio 5 BBCoin = 1 Diamond Utama</span>
+                    </div>
+                    <div class="text-right">
+                        <span id="gift-diamond-preview" class="text-base font-bold text-neutral-900">100 💎</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-neutral-700 mb-1">Tanggal Gift</label>
+                    <input type="date" id="gift-date" required class="w-full p-2 border border-muted rounded-lg font-semibold text-xs focus:outline-none focus:border-neutral-900">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-neutral-700 mb-1">Catatan / Keterangan (Opsional)</label>
+                    <input type="text" id="gift-notes" placeholder="Misal: Gift skin / transfer diamond ke akun utama" class="w-full p-2 border border-muted rounded-lg text-xs focus:outline-none focus:border-neutral-900">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2 border-t border-muted">
+                    <button type="button" onclick="closeModal('modal-gift-main')" class="px-4 py-2 border border-muted rounded-lg text-neutral-600 font-medium hover:bg-neutral-100">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Kirim Gift Sekarang</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1510,6 +1607,7 @@
                     <label class="block font-medium text-neutral-700 mb-1">Source Type</label>
                     <select id="source-type" required class="w-full p-2 border border-muted rounded-lg bg-surface font-semibold text-xs focus:outline-none focus:border-neutral-900">
                         <option value="DM">DM (Gift / Activity)</option>
+                        <option value="Gift to Main">Gift ke Akun Utama (Deduct BBCoin)</option>
                         <option value="Top-up">Top-up (Direct Purchase)</option>
                         <option value="Top-up Bonus">Top-up Double Bonus</option>
                         <option value="Vanguard Coin">Vanguard Coin (Reward)</option>
@@ -2275,7 +2373,7 @@
             resetToInitialData();
         }
 
-        // Helper calculations for PRD v1.2 Currency Rules
+        // Helper calculations for Currency Rules
         function getAccountTotals(accountId) {
             const sources = appData.account_sources.filter(s => s.account_id === accountId);
             const topups = appData.account_topups.filter(t => t.account_id === accountId);
@@ -2284,11 +2382,13 @@
             let dmActivities = 0;
             let topupNominal = 0;
             let topupBonus = 0;
+            let bbcGifted = 0;
 
             sources.forEach(s => {
                 if (s.source_type === 'DM') dmActivities += Number(s.nominal || 0);
                 if (s.source_type === 'Top-up') topupNominal += Number(s.nominal || 0);
                 if (s.source_type === 'Top-up Bonus') topupBonus += Number(s.bonus_amount || 0);
+                if (s.source_type === 'Gift to Main' || s.source_type === 'BBC Gift') bbcGifted += Number(s.nominal || 0);
             });
 
             topups.forEach(t => {
@@ -2302,10 +2402,7 @@
             claims.forEach(c => claimsTotal += Number(c.dm_claimed || 0));
 
             const totalDM = dmActivities + topupNominal + topupBonus + claimsTotal;
-
-            // VC Calculation
-            let vcEarned = 0;
-            sources.filter(s => s.source_type === 'Vanguard Coin').forEach(s => vcEarned += Number(s.nominal || 0));
+            const currentBbc = Math.max(0, totalDM - bbcGifted);
 
             // Bonus Status
             let bonusStatus = 'Not Eligible';
@@ -2315,11 +2412,8 @@
             }
 
             const bbcRate = Number(appData.settings.bbcToDiamondRate || 5);
-            const vcRate = Number(appData.settings.vcToDiamondRate || 1);
-
-            const estBbcDiamond = bbcRate > 0 ? (totalDM / bbcRate) : 0;
-            const estVcDiamond = vcEarned * vcRate;
-            const totalEstDiamond = estBbcDiamond + estVcDiamond;
+            const estBbcDiamond = bbcRate > 0 ? (currentBbc / bbcRate) : 0;
+            const diamondsGifted = bbcRate > 0 ? (bbcGifted / bbcRate) : 0;
 
             return {
                 dmActivities,
@@ -2327,11 +2421,14 @@
                 topupBonus,
                 claimsTotal,
                 totalDM,
-                vcEarned,
+                bbcGifted,
+                currentBbc,
+                diamondsGifted,
+                vcEarned: 0,
                 bonusStatus,
                 estBbcDiamond,
-                estVcDiamond,
-                totalEstDiamond
+                estVcDiamond: 0,
+                totalEstDiamond: estBbcDiamond
             };
         }
 
@@ -2376,13 +2473,14 @@
             document.getElementById('doverview-bonus-status').innerHTML = getBonusBadgeHTML(totals.bonusStatus);
             document.getElementById('doverview-est-diamonds').innerText = `${totals.totalEstDiamond.toFixed(1)} 💎`;
 
-            document.getElementById('sum-dm-gift').innerText = `${totals.dmActivities.toLocaleString()} DM`;
-            document.getElementById('sum-topup-nominal').innerText = `${totals.topupNominal.toLocaleString()} DM`;
-            document.getElementById('sum-topup-bonus').innerText = `${totals.topupBonus.toLocaleString()} DM`;
-            document.getElementById('sum-total-dm').innerText = `${totals.totalDM.toLocaleString()} DM`;
-            document.getElementById('sum-vc-earned').innerText = `${totals.vcEarned.toLocaleString()} VC`;
-            document.getElementById('sum-vc-spent').innerText = `0 VC`;
-            document.getElementById('sum-vc-balance').innerText = `${totals.vcEarned.toLocaleString()} VC`;
+            const setDetailTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+            setDetailTxt('sum-dm-gift', `${totals.dmActivities.toLocaleString()} DM`);
+            setDetailTxt('sum-topup-nominal', `${totals.topupNominal.toLocaleString()} DM`);
+            setDetailTxt('sum-topup-bonus', `${totals.topupBonus.toLocaleString()} DM`);
+            setDetailTxt('sum-total-dm', `${totals.totalDM.toLocaleString()} DM`);
+            setDetailTxt('sum-vc-earned', `${(totals.bbcGifted || 0).toLocaleString()} BBC Gifted`);
+            setDetailTxt('sum-vc-spent', `${(totals.diamondsGifted || 0).toFixed(1)} 💎 Utama`);
+            setDetailTxt('sum-vc-balance', `${(totals.currentBbc || 0).toLocaleString()} BBC Sisa`);
 
             // Tab 2 Sources & Bonus
             const topupRecord = appData.account_topups.find(t => t.account_id === accId);
@@ -2432,11 +2530,12 @@
             tbodyTx.innerHTML = '';
             appData.account_sources.filter(s => s.account_id === accId).forEach(s => {
                 const tr = document.createElement('tr');
+                const isGift = s.source_type === 'Gift to Main' || s.source_type === 'BBC Gift';
                 tr.innerHTML = `
-                    <td class="p-2.5">${s.received_at}</td>
-                    <td class="p-2.5 font-bold">${s.source_type === 'Vanguard Coin' ? 'VC' : 'DM'}</td>
+                    <td class="p-2.5">${s.received_at || '-'}</td>
+                    <td class="p-2.5 font-bold">${isGift ? '<span class="text-rose-600 font-bold">GIFT</span>' : 'DM'}</td>
                     <td class="p-2.5">${esc(s.source_type)}</td>
-                    <td class="p-2.5 text-right font-bold">+${s.total_received}</td>
+                    <td class="p-2.5 text-right font-bold ${isGift ? 'text-rose-600' : 'text-neutral-900'}">${isGift ? `-${Number(s.nominal || 0).toLocaleString()} BBC (${Number(s.total_received || 0).toFixed(1)} 💎)` : `+${s.total_received}`}</td>
                     <td class="p-2.5 text-neutral-500">${esc(s.notes || '-')}</td>
                 `;
                 tbodyTx.appendChild(tr);
@@ -2562,6 +2661,142 @@
             if (currentActiveAccountId === accId) renderAccountDetailTabContents(accId);
         }
 
+        // =====================================================================
+        // GIFT BBC / DIAMOND TO MAIN ACCOUNT CONTROLLER
+        // =====================================================================
+        function openGiftMainModal(presetAccountId = null) {
+            const accSelect = document.getElementById('gift-account-id');
+            if (!accSelect) return;
+            accSelect.innerHTML = '';
+
+            const activeAccounts = (appData.accounts || [])
+                .filter(a => a.status !== 'Archived')
+                .sort((a, b) => (a.server_code || '').localeCompare(b.server_code || ''));
+
+            activeAccounts.forEach(a => {
+                const totals = getAccountTotals(a.account_id);
+                const opt = document.createElement('option');
+                opt.value = a.account_id;
+                opt.textContent = `${a.server_code} (Saldo: ${totals.currentBbc.toLocaleString()} BBC)`;
+                accSelect.appendChild(opt);
+            });
+
+            if (presetAccountId && accSelect.querySelector(`option[value="${presetAccountId}"]`)) {
+                accSelect.value = presetAccountId;
+            }
+
+            const dateInput = document.getElementById('gift-date');
+            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+            const nomInput = document.getElementById('gift-nominal');
+            if (nomInput) nomInput.value = 500;
+            const notesInput = document.getElementById('gift-notes');
+            if (notesInput) notesInput.value = '';
+
+            onGiftAccountChange();
+            updateGiftDiamondPreview();
+
+            const modal = document.getElementById('modal-gift-main');
+            if (modal) modal.classList.remove('hidden');
+            if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+        }
+
+        function onGiftAccountChange() {
+            const accId = document.getElementById('gift-account-id')?.value;
+            const totals = accId ? getAccountTotals(accId) : { currentBbc: 0 };
+            const balanceEl = document.getElementById('gift-acc-balance');
+            if (balanceEl) {
+                balanceEl.textContent = `${(totals.currentBbc || 0).toLocaleString()} BBC`;
+            }
+        }
+
+        function setGiftNominal(amt) {
+            const input = document.getElementById('gift-nominal');
+            if (input) {
+                input.value = amt;
+                updateGiftDiamondPreview();
+            }
+        }
+
+        function setGiftAllBalance() {
+            const accId = document.getElementById('gift-account-id')?.value;
+            const totals = accId ? getAccountTotals(accId) : { currentBbc: 0 };
+            const input = document.getElementById('gift-nominal');
+            if (input && totals.currentBbc > 0) {
+                input.value = totals.currentBbc;
+                updateGiftDiamondPreview();
+            }
+        }
+
+        function updateGiftDiamondPreview() {
+            const nominal = Number(document.getElementById('gift-nominal')?.value || 0);
+            const bbcRate = Number(appData.settings?.bbcToDiamondRate || 5);
+            const diamonds = bbcRate > 0 ? (nominal / bbcRate) : 0;
+            const previewEl = document.getElementById('gift-diamond-preview');
+            if (previewEl) {
+                previewEl.textContent = `${diamonds.toFixed(1)} 💎`;
+            }
+        }
+
+        function handleSaveGiftToMain(e) {
+            e.preventDefault();
+            const accId = document.getElementById('gift-account-id').value;
+            const nominal = Number(document.getElementById('gift-nominal').value);
+            const date = document.getElementById('gift-date').value || new Date().toISOString().split('T')[0];
+            const notes = document.getElementById('gift-notes').value.trim() || 'Gift ke Akun Utama';
+
+            if (!accId) {
+                toast('Pilih akun pengirim terlebih dahulu.', 'warning');
+                return;
+            }
+            if (nominal <= 0) {
+                toast('Nominal gift harus lebih dari 0.', 'warning');
+                return;
+            }
+
+            const sender = appData.accounts.find(a => a.account_id === accId);
+            const totals = getAccountTotals(accId);
+
+            if (nominal > totals.currentBbc && !confirm(`Peringatan: Nominal gift (${nominal.toLocaleString()} BBC) melebihi sisa saldo akun (${totals.currentBbc.toLocaleString()} BBC). Tetap simpan?`)) {
+                return;
+            }
+
+            const bbcRate = Number(appData.settings?.bbcToDiamondRate || 5);
+            const diamondReceived = bbcRate > 0 ? (nominal / bbcRate) : 0;
+
+            const newSource = {
+                source_id: `src_gift_${Date.now()}`,
+                account_id: accId,
+                source_type: 'Gift to Main',
+                nominal: nominal,
+                bonus_status: 'Not Eligible',
+                multiplier: 1,
+                bonus_amount: 0,
+                total_received: diamondReceived,
+                received_at: date,
+                notes: notes
+            };
+
+            appData.account_sources.push(newSource);
+            saveData();
+
+            if (window.supabaseManager?.onSourceSaved) {
+                window.supabaseManager.onSourceSaved(newSource);
+            }
+
+            addLog('GIFT_MAIN', 'AccountSource', accId, null, {
+                sender: sender?.server_code || accId,
+                nominal_bbc: nominal,
+                diamond_received: diamondReceived,
+                date: date
+            });
+
+            toast(`Berhasil gift ${nominal.toLocaleString()} BBC (${diamondReceived.toFixed(1)} 💎) ke Akun Utama!`, 'success');
+            closeModal('modal-gift-main');
+            renderAccountsTable();
+            if (currentActiveAccountId === accId) renderAccountDetailTabContents(accId);
+            refreshCurrentTab();
+        }
+
         function populateAccountDropdowns(includeId = null) {
             const select = document.getElementById('source-account-id');
             select.innerHTML = '';
@@ -2614,12 +2849,13 @@
                     <td class="px-3.5 py-2 font-bold text-neutral-900">${esc(a.server_code)}${dupBadge}</td>
                     <td class="px-3.5 py-2">Lvl ${a.level}</td>
                     <td class="px-3.5 py-2">${getStatusBadgeHTML(a.status)}</td>
-                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.totalDM.toLocaleString()} DM</td>
-                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.vcEarned.toLocaleString()} VC</td>
+                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.currentBbc.toLocaleString()} BBC</td>
+                    <td class="px-3.5 py-2 text-right font-medium ${totals.diamondsGifted > 0 ? 'text-neutral-900 font-bold' : 'text-neutral-400'}">${totals.diamondsGifted.toFixed(1)} 💎</td>
                     <td class="px-3.5 py-2 text-center">${getBonusBadgeHTML(totals.bonusStatus)}</td>
-                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.totalEstDiamond.toFixed(1)} 💎</td>
+                    <td class="px-3.5 py-2 text-right font-bold text-neutral-900">${totals.estBbcDiamond.toFixed(1)} 💎</td>
                     <td class="px-3.5 py-2 text-right space-x-1">
                         <button onclick="viewAccountDetail('${a.account_id}')" class="p-1 hover:bg-neutral-200 rounded text-neutral-800 font-bold" title="Open Account Detail Page"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                        ${!isArch ? `<button onclick="openGiftMainModal('${a.account_id}')" class="p-1 hover:bg-neutral-200 rounded text-neutral-900 font-bold" title="Gift BBC ke Akun Utama"><i data-lucide="gift" class="w-3.5 h-3.5"></i></button>` : ''}
                         ${isArch ? `<button onclick="restoreAccount('${a.account_id}')" class="p-1 hover:bg-neutral-200 rounded text-neutral-800" title="Restore account"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></button>` : `<button onclick="openAddSourceModal('${a.account_id}')" class="p-1 hover:bg-neutral-200 rounded text-neutral-800" title="Add Transaction (Record Source)"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i></button>`}
                         <button onclick="editAccount('${a.account_id}')" class="p-1 hover:bg-neutral-200 rounded text-neutral-600"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
                     </td>
@@ -2633,9 +2869,11 @@
             let totalDmSources = 0;
             let totalTopupNominal = 0;
             let totalTopupBonus = 0;
+            let totalBbcGifted = 0;
 
             appData.account_sources.forEach(s => {
                 if (s.source_type === 'DM') totalDmSources += Number(s.nominal || 0);
+                if (s.source_type === 'Gift to Main' || s.source_type === 'BBC Gift') totalBbcGifted += Number(s.nominal || 0);
             });
 
             appData.account_topups.forEach(t => {
@@ -2650,19 +2888,9 @@
             const dmRate = Number(appData.settings.dmToBbcRate || 1);
             const bbcRate = Number(appData.settings.bbcToDiamondRate || 5);
             const totalBBCoin = totalDM * dmRate;
-            const diamondFromBBC = bbcRate > 0 ? (totalBBCoin / bbcRate) : 0;
-
-            let vcEarned = 0;
-            let vcSpent = 0;
-            appData.vc_transactions.forEach(tx => {
-                vcEarned += Number(tx.vc_earned || 0);
-                vcSpent += Number(tx.vc_spent || 0);
-            });
-            const vcBalance = vcEarned - vcSpent;
-            const vcRate = Number(appData.settings.vcToDiamondRate || 1);
-            const diamondFromVc = vcBalance * vcRate;
-
-            const totalEstimatedDiamonds = diamondFromBBC + diamondFromVc;
+            const totalDiamondsGifted = bbcRate > 0 ? (totalBbcGifted / bbcRate) : 0;
+            const currentBbcBalance = Math.max(0, totalBBCoin - totalBbcGifted);
+            const remainingPotentialDiamonds = bbcRate > 0 ? (currentBbcBalance / bbcRate) : 0;
 
             return {
                 totalDmSources,
@@ -2670,14 +2898,18 @@
                 totalTopupBonus,
                 totalDM,
                 totalBBCoin,
-                diamondFromBBC,
+                totalBbcGifted,
+                currentBbcBalance,
+                totalDiamondsGifted,
+                diamondFromBBC: totalDiamondsGifted,
+                remainingPotentialDiamonds,
                 vc: {
-                    totalEarned: vcEarned,
-                    totalSpent: vcSpent,
-                    currentBalance: vcBalance,
-                    diamondFromVc
+                    totalEarned: 0,
+                    totalSpent: 0,
+                    currentBalance: 0,
+                    diamondFromVc: 0
                 },
-                totalEstimatedDiamonds
+                totalEstimatedDiamonds: totalDiamondsGifted
             };
         }
 
@@ -2829,19 +3061,29 @@
 
             (appData.account_sources || []).forEach(s => {
                 const date = s.received_at || '';
-                // Align with existing lifetime aggregation (calculateTotals): DM activity sources only.
-                // Top-up DM is owned by account_topups; bonus by claimed topups; VC by vc_transactions.
-                if (s.source_type !== 'DM') return;
-                txs.push({
-                    transaction_id: s.source_id,
-                    account_id: s.account_id || null,
-                    transaction_type: 'Earn',
-                    source: 'DM',
-                    amount: Number(s.nominal || 0),
-                    currency: 'DM',
-                    transaction_date: date,
-                    notes: s.notes || ''
-                });
+                if (s.source_type === 'DM') {
+                    txs.push({
+                        transaction_id: s.source_id,
+                        account_id: s.account_id || null,
+                        transaction_type: 'Earn',
+                        source: 'DM',
+                        amount: Number(s.nominal || 0),
+                        currency: 'DM',
+                        transaction_date: date,
+                        notes: s.notes || ''
+                    });
+                } else if (s.source_type === 'Gift to Main' || s.source_type === 'BBC Gift') {
+                    txs.push({
+                        transaction_id: s.source_id,
+                        account_id: s.account_id || null,
+                        transaction_type: 'Gift',
+                        source: 'Gift ke Akun Utama',
+                        amount: Number(s.nominal || 0),
+                        currency: 'BBC',
+                        transaction_date: date,
+                        notes: s.notes || ''
+                    });
+                }
             });
 
             (appData.account_topups || []).forEach(t => {
@@ -2893,6 +3135,7 @@
             const monthTxs = buildUnifiedTransactions().filter(t => isInMonth(t.transaction_date, year, month));
 
             let dmEarned = 0;
+            let bbcGiftedMonth = 0;
             let vcEarned = 0;
             let vcSpent = 0;
             let vcUpdateReward = 0;
@@ -2903,28 +3146,17 @@
 
             monthTxs.forEach(t => {
                 const amt = Number(t.amount || 0);
-                if (t.currency === 'DM' && t.transaction_type === 'Earn') {
+                if (t.transaction_type === 'Gift') {
+                    bbcGiftedMonth += amt;
+                } else if (t.currency === 'DM' && t.transaction_type === 'Earn') {
                     dmEarned += amt;
                     if (dmBySource[t.source] !== undefined) dmBySource[t.source] += amt;
-                } else if (t.currency === 'VC') {
-                    if (t.transaction_type === 'Earn') {
-                        vcEarned += amt;
-                        if (t.source === 'Update Reward') vcUpdateReward += amt;
-                        if (t.source === 'Quest Reward') vcQuestReward += amt;
-                    } else if (t.transaction_type === 'Convert') {
-                        vcSpent += amt;
-                        const diamonds = amt * vcRate;
-                        diamondsConverted += diamonds;
-                        conversions.push({ ...t, diamonds });
-                    } else {
-                        vcSpent += amt;
-                    }
                 }
             });
 
             const bbcEarned = dmEarned * dmRate;
+            const diamondsGiftedMonth = bbcRate > 0 ? (bbcGiftedMonth / bbcRate) : 0;
             const bbcDiamonds = bbcRate > 0 ? (bbcEarned / bbcRate) : 0;
-            const vcDiamonds = vcEarned * vcRate;
 
             return {
                 year,
@@ -2934,13 +3166,15 @@
                 conversions,
                 dmEarned,
                 bbcEarned,
+                bbcGiftedMonth,
+                diamondsGiftedMonth,
                 dmBySource,
-                vcEarned,
-                vcSpent,
-                vcUpdateReward,
-                vcQuestReward,
-                diamondsConverted,
-                monthlyEstDiamonds: bbcDiamonds + vcDiamonds
+                vcEarned: 0,
+                vcSpent: bbcGiftedMonth,
+                vcUpdateReward: 0,
+                vcQuestReward: 0,
+                diamondsConverted: diamondsGiftedMonth,
+                monthlyEstDiamonds: bbcDiamonds
             };
         }
 
@@ -2993,26 +3227,42 @@
             populateMonthSelect('dash-month-select', currentFilterMonth, currentFilterYear);
             const summary = getBalanceSummary(currentFilterYear, currentFilterMonth);
             const m = summary.monthly;
+            const totals = summary.totals;
             const periodLabel = summary.periodLabel;
 
-            document.getElementById('kpi-month-dm').innerText = m.dmEarned.toLocaleString();
-            document.getElementById('kpi-month-dm-label').innerText = periodLabel;
-            document.getElementById('kpi-month-bbcoin').innerText = m.bbcEarned.toLocaleString();
-            document.getElementById('kpi-month-vc-earned').innerText = m.vcEarned.toLocaleString();
-            document.getElementById('kpi-month-vc-spent').innerText = m.vcSpent.toLocaleString();
-            document.getElementById('kpi-month-diamonds').innerText = m.diamondsConverted.toLocaleString();
-            document.getElementById('kpi-month-est-diamonds').innerText = `${m.monthlyEstDiamonds.toFixed(1)} 💎`;
-            document.getElementById('kpi-month-est-label').innerText = periodLabel;
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
 
-            document.getElementById('bal-dm-monthly').innerText = `${summary.dm.monthlyEarned.toLocaleString()} DM`;
-            document.getElementById('bal-dm-lifetime').innerText = `${summary.dm.lifetimeEarned.toLocaleString()} DM`;
-            document.getElementById('bal-dm-current').innerText = `${summary.dm.currentBalance.toLocaleString()} DM`;
-            document.getElementById('bal-bb-monthly').innerText = `${summary.bbcoin.monthlyEarned.toLocaleString()} BBC`;
-            document.getElementById('bal-bb-lifetime').innerText = `${summary.bbcoin.lifetimeEarned.toLocaleString()} BBC`;
-            document.getElementById('bal-bb-current').innerText = `${summary.bbcoin.currentBalance.toLocaleString()} BBC`;
-            document.getElementById('bal-vc-monthly').innerText = `${summary.vc.monthlyEarned.toLocaleString()} VC`;
-            document.getElementById('bal-vc-lifetime').innerText = `${summary.vc.lifetimeEarned.toLocaleString()} VC`;
-            document.getElementById('bal-vc-current').innerText = `${summary.vc.currentBalance.toLocaleString()} VC`;
+            setTxt('kpi-month-dm', m.dmEarned.toLocaleString());
+            setTxt('kpi-month-dm-label', periodLabel);
+            setTxt('kpi-month-bbcoin', m.bbcEarned.toLocaleString());
+            setTxt('kpi-month-bbc-gifted', (m.bbcGiftedMonth || 0).toLocaleString() + ' BBC');
+            setTxt('kpi-month-diamonds', (m.diamondsGiftedMonth || 0).toFixed(1) + ' 💎');
+            setTxt('kpi-month-est-diamonds', `${m.monthlyEstDiamonds.toFixed(1)} 💎`);
+            setTxt('kpi-month-est-label', periodLabel);
+
+            // DM Balance Cards
+            setTxt('bal-dm-monthly', `${summary.dm.monthlyEarned.toLocaleString()} DM`);
+            setTxt('bal-dm-lifetime', `${summary.dm.lifetimeEarned.toLocaleString()} DM`);
+            setTxt('bal-dm-current', `${summary.dm.currentBalance.toLocaleString()} DM`);
+
+            // BBCoin Balance Cards
+            setTxt('bal-bb-lifetime', `${totals.totalBBCoin.toLocaleString()} BBC`);
+            setTxt('bal-bb-monthly', `-${(totals.totalBbcGifted || 0).toLocaleString()} BBC`);
+            setTxt('bal-bb-current', `${(totals.currentBbcBalance || 0).toLocaleString()} BBC`);
+
+            // Main Account Diamonds Cards
+            setTxt('bal-main-monthly', `${(m.diamondsGiftedMonth || 0).toFixed(1)} 💎`);
+            setTxt('bal-main-lifetime', `${(totals.totalDiamondsGifted || 0).toFixed(1)} 💎`);
+            const goal = Number(appData.settings.mainDiamondTarget || 500);
+            setTxt('bal-main-goal', `${(totals.totalDiamondsGifted || 0).toFixed(1)} / ${goal} 💎`);
+
+            // Legacy fallbacks
+            setTxt('kpi-month-vc-earned', '0');
+            setTxt('kpi-month-vc-spent', '0');
+            setTxt('bal-vc-monthly', '0 VC');
+            setTxt('bal-vc-lifetime', '0 VC');
+            setTxt('bal-vc-current', '0 VC');
+            setTxt('kpi-current-vc', '0');
 
             let bonusAvailableAccs = 0;
             let bonusClaimedAccs = 0;
@@ -3022,24 +3272,18 @@
                 if (st === 'Claimed') bonusClaimedAccs++;
             });
 
-            document.getElementById('kpi-bonus-available').innerText = `${bonusAvailableAccs} Acc`;
-            document.getElementById('kpi-bonus-claimed').innerText = `${bonusClaimedAccs} Acc`;
+            setTxt('kpi-bonus-available', `${bonusAvailableAccs} Acc`);
+            setTxt('kpi-bonus-claimed', `${bonusClaimedAccs} Acc`);
+            setTxt('kpi-total-bbcoin', totals.totalBBCoin.toLocaleString());
+            setTxt('kpi-total-diamonds-gifted', `${(totals.totalDiamondsGifted || 0).toFixed(1)} 💎`);
 
-            document.getElementById('kpi-total-bbcoin').innerText = summary.totals.totalBBCoin.toLocaleString();
-            document.getElementById('kpi-current-vc').innerText = summary.vc.currentBalance.toLocaleString();
-
-            // Progress Bar (lifetime basis)
-            const goal = Number(appData.settings.mainDiamondTarget || 500);
-            const totals = summary.totals;
-            const pct = Math.min(100, (totals.totalEstimatedDiamonds / goal) * 100);
-            const bbcPct = Math.min(100, (totals.diamondFromBBC / goal) * 100);
-            const vcPct = Math.min(100 - bbcPct, (totals.vc.diamondFromVc / goal) * 100);
-
-            document.getElementById('target-percentage').innerText = `${pct.toFixed(1)}%`;
-            document.getElementById('target-progress-bbcoin').style.width = `${bbcPct}%`;
-            document.getElementById('target-progress-vc').style.width = `${vcPct}%`;
-            document.getElementById('target-current-text').innerText = `${totals.totalEstimatedDiamonds.toFixed(1)} / ${goal} Diamonds`;
-            document.getElementById('target-goal-text').innerText = `Goal: ${goal} 💎`;
+            // Progress Bar (actual diamonds gifted to main account)
+            const pct = Math.min(100, ((totals.totalDiamondsGifted || 0) / goal) * 100);
+            setTxt('target-percentage', `${pct.toFixed(1)}%`);
+            const barBbc = document.getElementById('target-progress-bbcoin');
+            if (barBbc) barBbc.style.width = `${pct}%`;
+            setTxt('target-current-text', `${(totals.totalDiamondsGifted || 0).toFixed(1)} / ${goal} Diamonds Ditransfer`);
+            setTxt('target-goal-text', `Goal: ${goal} 💎`);
 
             renderDashboardCharts(m);
         }
@@ -3047,23 +3291,23 @@
         function renderDashboardCharts(monthlyTotals) {
             // Chart 1: Currency Distribution by Source (selected month)
             const subtitleEl = document.getElementById('chart-source-subtitle');
-            if (subtitleEl) subtitleEl.innerText = `DM / Topup / Bonus / Claims / VC — ${monthlyTotals.label}`;
+            if (subtitleEl) subtitleEl.innerText = `DM / Topup / Bonus / Claims / Gifted — ${monthlyTotals.label}`;
 
             const ctx1 = document.getElementById('chart-currency-source').getContext('2d');
             if (currencySourceChart) currencySourceChart.destroy();
             currencySourceChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
-                    labels: ['DM / Gift', 'Topup Nominal', 'Topup Bonus', 'Update Claims', 'VC Earned'],
+                    labels: ['DM Farmed', 'Topup Nominal', 'Topup Bonus', 'Update Claims', 'Gifted ke Utama'],
                     datasets: [{
                         data: [
-                            monthlyTotals.dmBySource['DM'],
-                            monthlyTotals.dmBySource['Top-up'],
-                            monthlyTotals.dmBySource['Top-up Bonus'],
-                            monthlyTotals.dmBySource['Update Claim'],
-                            monthlyTotals.vcEarned
+                            monthlyTotals.dmBySource['DM'] || 0,
+                            monthlyTotals.dmBySource['Top-up'] || 0,
+                            monthlyTotals.dmBySource['Top-up Bonus'] || 0,
+                            monthlyTotals.dmBySource['Update Claim'] || 0,
+                            monthlyTotals.bbcGiftedMonth || 0
                         ],
-                        backgroundColor: ['#111111', '#525252', '#A3A3A3', '#D4D4D4', '#E5E5E5'],
+                        backgroundColor: ['#111111', '#525252', '#A3A3A3', '#D4D4D4', '#E11D48'],
                         borderWidth: 1
                     }]
                 },
