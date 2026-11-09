@@ -366,15 +366,68 @@ function ensureSdkLoaded() {
         try {
             console.log('[SupabaseManager] Syncing from Supabase Cloud...');
 
-            // Check if cloud has accounts
-            const { count: accountCount, error: countErr } = await client
-                .from('accounts')
-                .select('*', { count: 'exact', head: true });
+            if (isManual && typeof window.updateLoading === 'function') {
+                window.updateLoading('Sinkronisasi Cloud', 'Mengambil data dari server Cloud...', 50);
+            }
 
-            if (countErr) throw countErr;
+            // Step 1: Try ultra-fast single RPC call (export_all returns all tables in <100ms)
+            let cloudData = null;
+            try {
+                const { data: expData, error: expErr } = await Promise.race([
+                    client.rpc('export_all'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout export_all 10s')), 10000))
+                ]);
+                if (!expErr && expData && Array.isArray(expData.accounts)) {
+                    cloudData = expData;
+                    console.log('[SupabaseManager] Fast sync via export_all OK:', {
+                        branches: expData.branches?.length,
+                        accounts: expData.accounts?.length,
+                        claims: expData.claims?.length
+                    });
+                }
+            } catch (rpcErr) {
+                console.warn('[SupabaseManager] export_all RPC bypassed/failed:', rpcErr.message);
+            }
 
-            // If Cloud is empty but local has data, offer initial migration upload!
-            if ((accountCount === 0 || accountCount === null) && window.appData?.accounts?.length > 0) {
+            // Step 2: Fallback to parallel select if export_all was not used
+            if (!cloudData) {
+                console.log('[SupabaseManager] Running parallel table fetch fallback...');
+                const fetchPromise = Promise.all([
+                    client.from('branches').select('*').order('created_at', { ascending: true }),
+                    client.from('accounts').select('*').order('created_at', { ascending: true }),
+                    client.from('updates').select('*').order('created_at', { ascending: true }),
+                    client.from('claims').select('*'),
+                    client.from('account_sources').select('*'),
+                    client.from('account_topups').select('*'),
+                    client.from('vc_transactions').select('*'),
+                    client.from('activity_logs').select('*').order('created_at', { ascending: true }),
+                    client.from('settings').select('*')
+                ]);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Koneksi sinkronisasi timeout 10 detik')), 10000)
+                );
+
+                const [branchesRes, accountsRes, updatesRes, claimsRes, sourcesRes, topupsRes, vcRes, logsRes, settingsRes] =
+                    await Promise.race([fetchPromise, timeoutPromise]);
+
+                if (branchesRes.error) throw branchesRes.error;
+                if (accountsRes.error) throw accountsRes.error;
+
+                cloudData = {
+                    branches: branchesRes.data || [],
+                    accounts: accountsRes.data || [],
+                    updates: updatesRes.data || [],
+                    claims: claimsRes.data || [],
+                    account_sources: sourcesRes.data || [],
+                    account_topups: topupsRes.data || [],
+                    vc_transactions: vcRes.data || [],
+                    activity_logs: logsRes.data || [],
+                    settings: settingsRes.data || []
+                };
+            }
+
+            // If Cloud is empty but local has data, offer initial migration upload
+            if ((!cloudData.accounts || cloudData.accounts.length === 0) && window.appData?.accounts?.length > 0) {
                 if (typeof window.hideLoading === 'function') window.hideLoading();
                 console.log('[SupabaseManager] Cloud database is empty. Prompting for initial upload...');
                 const accEl = document.getElementById('cloud-migration-acc-count');
@@ -387,63 +440,38 @@ function ensureSdkLoaded() {
             }
 
             if (isManual && typeof window.updateLoading === 'function') {
-                window.updateLoading('Sinkronisasi Cloud', 'Mengambil data cabang, akun, dan klaim...', 60);
-            }
-
-            // Cloud has data: fetch all tables in parallel with a 15-second safety timeout
-            const fetchPromise = Promise.all([
-                client.from('branches').select('*').order('created_at', { ascending: true }),
-                client.from('accounts').select('*').order('created_at', { ascending: true }),
-                client.from('updates').select('*').order('created_at', { ascending: true }),
-                client.from('claims').select('*'),
-                client.from('account_sources').select('*'),
-                client.from('account_topups').select('*'),
-                client.from('vc_transactions').select('*'),
-                client.from('activity_logs').select('*').order('created_at', { ascending: true }),
-                client.from('settings').select('*')
-            ]);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Koneksi sinkronisasi timeout 15 detik')), 15000)
-            );
-
-            const [branchesRes, accountsRes, updatesRes, claimsRes, sourcesRes, topupsRes, vcRes, logsRes, settingsRes] = await Promise.race([fetchPromise, timeoutPromise]);
-
-            if (branchesRes.error) throw branchesRes.error;
-            if (accountsRes.error) throw accountsRes.error;
-
-            if (isManual && typeof window.updateLoading === 'function') {
-                window.updateLoading('Sinkronisasi Cloud', 'Memperbarui data dan ringkasan keuangan...', 90);
+                window.updateLoading('Sinkronisasi Cloud', 'Memperbarui tampilan...', 90);
             }
 
             if (window.appData) {
-                window.appData.branches = branchesRes.data || [];
-                window.appData.accounts = accountsRes.data || [];
-                window.appData.updates = updatesRes.data || [];
-                window.appData.claims = (claimsRes.data || []).map(c => ({
+                window.appData.branches = cloudData.branches || [];
+                window.appData.accounts = cloudData.accounts || [];
+                window.appData.updates = cloudData.updates || [];
+                window.appData.claims = (cloudData.claims || []).map(c => ({
                     ...c,
                     dm_claimed: Number(c.reward_amount_claimed ?? c.dm_claimed ?? 0)
                 }));
-                window.appData.account_sources = (sourcesRes.data || []).map(s => ({
+                window.appData.account_sources = (cloudData.account_sources || []).map(s => ({
                     ...s,
                     nominal: Number(s.nominal || 0),
                     bonus_amount: Number(s.bonus_amount || 0),
                     total_received: Number(s.total_received || 0)
                 }));
-                window.appData.account_topups = (topupsRes.data || []).map(t => ({
+                window.appData.account_topups = (cloudData.account_topups || []).map(t => ({
                     ...t,
                     nominal: Number(t.nominal || 0),
                     bonus_amount: Number(t.bonus_amount || 0),
                     total_received: Number(t.total_received || 0)
                 }));
-                window.appData.vc_transactions = (vcRes.data || []).map(v => ({
+                window.appData.vc_transactions = (cloudData.vc_transactions || []).map(v => ({
                     ...v,
                     date: v.transaction_date || v.date,
                     vc_earned: Number(v.vc_earned || 0),
                     vc_spent: Number(v.vc_spent || 0)
                 }));
 
-                if (logsRes.data) {
-                    window.appData.logs = logsRes.data.map(l => ({
+                if (cloudData.activity_logs) {
+                    window.appData.logs = cloudData.activity_logs.map(l => ({
                         log_id: l.log_id,
                         action: l.action,
                         entity_type: l.entity_type,
@@ -454,8 +482,8 @@ function ensureSdkLoaded() {
                     }));
                 }
 
-                if (settingsRes.data && settingsRes.data.length > 0) {
-                    settingsRes.data.forEach(s => {
+                if (Array.isArray(cloudData.settings) && cloudData.settings.length > 0) {
+                    cloudData.settings.forEach(s => {
                         if (s.key && s.value !== undefined) {
                             window.appData.settings[s.key] = s.value;
                         }
