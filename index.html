@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>XCX BBC Management v1.6</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
     
     <!-- PWA & Mobile Meta Tags -->
     <meta name="theme-color" content="#111111">
@@ -26,13 +30,13 @@
             "theme_color": "#111111",
             "icons": [
                 {
-                    "src": "https://placehold.co/192x192/111111/ffffff?text=XCX",
+                    "src": "logo.png",
                     "sizes": "192x192",
                     "type": "image/png",
                     "purpose": "any maskable"
                 },
                 {
-                    "src": "https://placehold.co/512x512/111111/ffffff?text=XCX",
+                    "src": "logo.png",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "any maskable"
@@ -132,8 +136,8 @@
     <div id="auth-screen" class="fixed inset-0 bg-neutral-950 flex items-center justify-center p-4 z-50">
         <div class="bg-surface rounded-2xl border border-neutral-800 w-full max-w-md overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6">
             <div class="text-center space-y-2">
-                <div class="w-12 h-12 bg-neutral-900 text-white rounded-xl flex items-center justify-center font-bold text-lg mx-auto border border-neutral-800">
-                    X
+                <div class="w-14 h-14 mx-auto">
+                    <img src="logo.png" alt="XCX BBC Logo" class="w-full h-full object-contain rounded-xl">
                 </div>
                 <h1 class="text-lg font-bold text-neutral-900 tracking-tight">XCX BBC Management</h1>
                 <p class="text-xs text-neutral-500">Cloud Database System (Supabase PostgreSQL)</p>
@@ -186,7 +190,9 @@
         <div class="overflow-y-auto min-h-0 flex-1">
             <!-- App Header -->
             <div class="h-14 border-b border-muted flex items-center px-5 gap-2.5 sticky top-0 bg-surface z-10">
-                <div class="w-7 h-7 bg-brand-900 text-white rounded-md flex items-center justify-center font-bold text-xs">X</div>
+                <div class="w-7 h-7 shrink-0">
+                    <img src="logo.png" alt="XCX BBC" class="w-full h-full object-contain rounded-md">
+                </div>
                 <div>
                     <h1 class="font-bold text-xs leading-none tracking-tight">XCX BBC</h1>
                     <span class="text-[10px] text-neutral-400 font-medium">v1.6 Account Lifecycle</span>
