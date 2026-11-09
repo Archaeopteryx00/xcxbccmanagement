@@ -1853,6 +1853,26 @@
         </div>
     </div>
 
+    <!-- GLOBAL LOADING & PROGRESS OVERLAY -->
+    <div id="global-loading-overlay" class="fixed inset-0 bg-neutral-950/75 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-200 hidden select-none">
+        <div class="bg-surface rounded-2xl border border-muted p-6 max-w-sm w-full shadow-2xl space-y-4 text-center">
+            <div class="w-12 h-12 rounded-xl bg-neutral-900 text-white flex items-center justify-center mx-auto shadow-md">
+                <svg class="animate-spin w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div>
+                <h3 id="loading-title" class="font-bold text-sm text-neutral-900">Memproses Data</h3>
+                <p id="loading-desc" class="text-xs text-neutral-500 mt-1 leading-relaxed">Mohon tunggu sebentar...</p>
+            </div>
+            <!-- Progress Bar Indicator -->
+            <div class="w-full bg-neutral-100 rounded-full h-1.5 overflow-hidden">
+                <div id="loading-progress-bar" class="bg-neutral-900 h-1.5 rounded-full transition-all duration-300 w-1/3 animate-pulse"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast Container -->
         <!-- MODAL: SUPABASE AUTH & CLOUD SYNC -->
     <div id="modal-auth"
@@ -3929,6 +3949,7 @@
                 return;
             }
             if (!confirm(`Tandai ${selectedIds.length} akun sebagai Claimed? Jumlah DM tetap 0 sampai kamu mengisinya pada detail klaim.`)) return;
+            if (typeof window.showLoading === 'function') window.showLoading('Bulk Claim', `Memproses ${selectedIds.length} akun...`, 50);
             const today = new Date().toISOString().slice(0, 10);
             let changed = 0;
             selectedIds.forEach(id => {
@@ -3944,6 +3965,7 @@
                 changed++;
             });
             saveData();
+            if (typeof window.hideLoading === 'function') window.hideLoading();
             toast(`${changed} akun ditandai Claimed.`);
             renderClaimsTable(currentSelectedUpdateId);
         }
@@ -4261,8 +4283,11 @@
 
                     // Jika terhubung ke Cloud Supabase, langsung upload & sinkronkan data backup ke Cloud
                     if (window.supabaseManager?.isLoggedIn()) {
-                        toast('Mengunggah data backup ke database Supabase Cloud...', 'info');
+                        if (typeof window.showLoading === 'function') {
+                            window.showLoading('Memulihkan ke Cloud', 'Mengunggah seluruh data backup ke database Supabase...', 50);
+                        }
                         const res = await window.supabaseManager.uploadFullData(appData);
+                        if (typeof window.hideLoading === 'function') window.hideLoading();
                         if (res && res.success) {
                             toast('Database Cloud & lokal berhasil dipulihkan dari file backup!', 'success');
                         } else {
@@ -4273,6 +4298,7 @@
                     }
                     refreshCurrentTab();
                 } catch(err) {
+                    if (typeof window.hideLoading === 'function') window.hideLoading();
                     alert(`Gagal memulihkan data: ${err.message}`);
                 }
             };
@@ -4670,6 +4696,35 @@
             appData.logs.unshift(logEntry);
             saveData();
         }
+
+        function showLoading(title = 'Memproses...', desc = 'Mohon tunggu sebentar...', progress = 100) {
+            const overlay = document.getElementById('global-loading-overlay');
+            const t = document.getElementById('loading-title');
+            const d = document.getElementById('loading-desc');
+            const bar = document.getElementById('loading-progress-bar');
+            if (t) t.innerText = title;
+            if (d) d.innerText = desc;
+            if (bar && progress !== null) bar.style.width = `${progress}%`;
+            if (overlay) overlay.classList.remove('hidden');
+        }
+
+        function updateLoading(title, desc, progress = null) {
+            const t = document.getElementById('loading-title');
+            const d = document.getElementById('loading-desc');
+            const bar = document.getElementById('loading-progress-bar');
+            if (t && title) t.innerText = title;
+            if (d && desc) d.innerText = desc;
+            if (bar && progress !== null) bar.style.width = `${progress}%`;
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        window.showLoading = showLoading;
+        window.updateLoading = updateLoading;
+        window.hideLoading = hideLoading;
 
         function toast(message, type = 'success') {
             const container = document.getElementById('toast-container');

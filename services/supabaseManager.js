@@ -333,7 +333,13 @@ function ensureSdkLoaded() {
         if (syncBtn) {
             syncBtn.classList.add('opacity-50', 'pointer-events-none');
             const span = syncBtn.querySelector('span');
+            const icon = syncBtn.querySelector('i');
             if (span) span.textContent = 'Syncing...';
+            if (icon) icon.classList.add('animate-spin');
+        }
+
+        if (isManual && typeof window.showLoading === 'function') {
+            window.showLoading('Sinkronisasi Cloud', 'Menghubungkan ke Supabase Cloud...', 25);
         }
 
         try {
@@ -348,6 +354,7 @@ function ensureSdkLoaded() {
 
             // If Cloud is empty but local has data, offer initial migration upload!
             if ((accountCount === 0 || accountCount === null) && window.appData?.accounts?.length > 0) {
+                if (typeof window.hideLoading === 'function') window.hideLoading();
                 console.log('[SupabaseManager] Cloud database is empty. Prompting for initial upload...');
                 const accEl = document.getElementById('cloud-migration-acc-count');
                 const branchEl = document.getElementById('cloud-migration-branch-count');
@@ -356,6 +363,10 @@ function ensureSdkLoaded() {
                 const modalMig = document.getElementById('modal-cloud-migration');
                 if (modalMig) modalMig.classList.remove('hidden');
                 return;
+            }
+
+            if (isManual && typeof window.updateLoading === 'function') {
+                window.updateLoading('Sinkronisasi Cloud', 'Mengambil data cabang, akun, dan klaim...', 60);
             }
 
             // Cloud has data: fetch all tables in parallel
@@ -373,6 +384,10 @@ function ensureSdkLoaded() {
 
             if (branchesRes.error) throw branchesRes.error;
             if (accountsRes.error) throw accountsRes.error;
+
+            if (isManual && typeof window.updateLoading === 'function') {
+                window.updateLoading('Sinkronisasi Cloud', 'Memperbarui data dan ringkasan keuangan...', 90);
+            }
 
             if (window.appData) {
                 window.appData.branches = branchesRes.data || [];
@@ -436,10 +451,15 @@ function ensureSdkLoaded() {
             }
         } finally {
             isSyncing = false;
+            if (typeof window.hideLoading === 'function') {
+                window.hideLoading();
+            }
             if (syncBtn) {
                 syncBtn.classList.remove('opacity-50', 'pointer-events-none');
                 const span = syncBtn.querySelector('span');
+                const icon = syncBtn.querySelector('i');
                 if (span) span.textContent = 'Sync';
+                if (icon) icon.classList.remove('animate-spin');
             }
         }
     }
@@ -457,6 +477,10 @@ function ensureSdkLoaded() {
             console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
             const app = customData || window.appData || {};
 
+            if (typeof window.showLoading === 'function') {
+                window.showLoading('Mengunggah ke Cloud', 'Menyimpan data cabang...', 15);
+            }
+
             // 1. Branches
             if (app.branches && app.branches.length > 0) {
                 const branchRows = app.branches.map(b => ({
@@ -468,6 +492,10 @@ function ensureSdkLoaded() {
                 }));
                 const { error: bErr } = await client.from('branches').upsert(branchRows);
                 if (bErr) throw new Error('Gagal upload branches: ' + bErr.message);
+            }
+
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data akun...', 35);
             }
 
             // 2. Accounts
@@ -485,6 +513,10 @@ function ensureSdkLoaded() {
                 }));
                 const { error: aErr } = await client.from('accounts').upsert(accRows);
                 if (aErr) throw new Error('Gagal upload accounts: ' + aErr.message);
+            }
+
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan periode update & klaim...', 55);
             }
 
             // 3. Updates
@@ -525,6 +557,10 @@ function ensureSdkLoaded() {
                 if (cErr) throw new Error('Gagal upload claims: ' + cErr.message);
             }
 
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan transaksi sumber & topup...', 75);
+            }
+
             // 5. Account Sources
             if (app.account_sources && app.account_sources.length > 0) {
                 const srcRows = app.account_sources.map(s => ({
@@ -560,6 +596,10 @@ function ensureSdkLoaded() {
                 if (tErr) throw new Error('Gagal upload account topups: ' + tErr.message);
             }
 
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan riwayat transaksi VC & pengaturan...', 90);
+            }
+
             // 7. VC Transactions
             if (app.vc_transactions && app.vc_transactions.length > 0) {
                 const vcRows = app.vc_transactions.map(v => ({
@@ -593,11 +633,18 @@ function ensureSdkLoaded() {
             const modalMig = document.getElementById('modal-cloud-migration');
             if (modalMig) modalMig.classList.add('hidden');
 
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Selesai!', 'Menyinkronkan data kembali...', 100);
+            }
             await syncFromCloud(false);
             return { success: true };
         } catch (err) {
             console.error('[SupabaseManager] uploadFullData error:', err);
             return { success: false, error: err.message || err };
+        } finally {
+            if (typeof window.hideLoading === 'function') {
+                window.hideLoading();
+            }
         }
     }
 
