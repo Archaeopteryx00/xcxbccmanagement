@@ -16,36 +16,8 @@
     <meta name="apple-mobile-web-app-title" content="XCX BBC">
     <meta name="mobile-web-app-capable" content="yes">
     
-    <!-- Inline Manifest for Web App Installation -->
-    <link rel="manifest" id="manifest-placeholder">
-    <script>
-        // Dynamic Manifest Injection with standalone configuration
-        const manifestData = {
-            "name": "XCX BBC Management",
-            "short_name": "XCX BBC",
-            "start_url": ".",
-            "display": "standalone",
-            "orientation": "any",
-            "background_color": "#FAFAFA",
-            "theme_color": "#111111",
-            "icons": [
-                {
-                    "src": "logo.png",
-                    "sizes": "192x192",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                },
-                {
-                    "src": "logo.png",
-                    "sizes": "512x512",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                }
-            ]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-        document.getElementById('manifest-placeholder').href = URL.createObjectURL(manifestBlob);
-    </script>
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>

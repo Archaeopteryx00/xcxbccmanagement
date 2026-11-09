@@ -10,6 +10,7 @@
     let sbClient = null;
     let currentUser = null;
     let isSyncing = false;
+    let isUploading = false;
     let activeAuthTab = 'login';
     let sdkLoadingPromise = null;
 
@@ -347,7 +348,7 @@ function ensureSdkLoaded() {
             return;
         }
 
-        if (isSyncing) return;
+        if (isSyncing || isUploading) return;
         isSyncing = true;
         const syncBtn = document.getElementById('cloud-sync-btn');
         if (syncBtn) {
@@ -519,25 +520,27 @@ function ensureSdkLoaded() {
         if (!client || !currentUser) {
             return { success: false, error: 'Belum terautentikasi ke Supabase Cloud.' };
         }
+        if (isUploading) return { success: false, error: 'Operasi upload/restore sedang berjalan.' };
+        isUploading = true;
 
         try {
             console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
             const app = customData || window.appData || {};
 
-            // ---- Server-side atomic restore via RPC ----
+            // ---- Server-side atomic restore via fast set-based RPC ----
             if (typeof window.showLoading === 'function') {
-                window.showLoading('Memulihkan ke Cloud', 'Menyimpan seluruh database ke server Cloud... (harap tunggu ~10-20 detik)', 30);
+                window.showLoading('Memulihkan ke Cloud', 'Menyimpan database ke server Cloud...', 30);
             }
             console.log('[SupabaseManager] Calling restore_full_backup RPC...');
             
-            // Allow up to 60 seconds for server-side transactional restore
+            // Allow up to 30 seconds for server-side transactional restore
             let rpcData = null;
             let rpcErr = null;
             try {
                 const rpcResult = await Promise.race([
                     client.rpc('restore_full_backup', { payload: app }),
                     new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Koneksi timeout setelah 60 detik. Silakan periksa koneksi internet.')), 60000)
+                        setTimeout(() => reject(new Error('Koneksi timeout setelah 30 detik.')), 30000)
                     )
                 ]);
                 rpcData = rpcResult.data;
@@ -560,6 +563,7 @@ function ensureSdkLoaded() {
             if (typeof window.updateLoading === 'function') {
                 window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 95);
             }
+            isUploading = false;
             await syncFromCloud(false);
             console.log('[SupabaseManager] uploadFullData complete.');
             return { success: true };
@@ -567,6 +571,7 @@ function ensureSdkLoaded() {
             console.error('[SupabaseManager] uploadFullData error:', err);
             return { success: false, error: err.message || String(err) };
         } finally {
+            isUploading = false;
             if (typeof window.hideLoading === 'function') {
                 window.hideLoading();
             }
