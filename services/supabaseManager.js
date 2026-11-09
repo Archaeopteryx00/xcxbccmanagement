@@ -445,20 +445,17 @@ function ensureSdkLoaded() {
     }
 
     // -------------------------------------------------------------------------
-    // 5. Initial Migration Upload (Local -> Cloud)
+    // 5. Full Data Upload & Backup Restoration to Cloud
     // -------------------------------------------------------------------------
-    async function executeInitialUpload() {
+    async function uploadFullData(customData = null) {
         const client = getClient();
-        if (!client || !currentUser) return;
-        const btn = document.getElementById('cloud-migration-confirm-btn');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span><span>Mengunggah data ke Cloud...</span>`;
+        if (!client || !currentUser) {
+            return { success: false, error: 'Belum terautentikasi ke Supabase Cloud.' };
         }
 
         try {
-            console.log('[SupabaseManager] Starting initial upload to Supabase Cloud...');
-            const app = window.appData || {};
+            console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
+            const app = customData || window.appData || {};
 
             // 1. Branches
             if (app.branches && app.branches.length > 0) {
@@ -470,7 +467,7 @@ function ensureSdkLoaded() {
                     notes: b.notes || null
                 }));
                 const { error: bErr } = await client.from('branches').upsert(branchRows);
-                if (bErr) throw bErr;
+                if (bErr) throw new Error('Gagal upload branches: ' + bErr.message);
             }
 
             // 2. Accounts
@@ -487,7 +484,7 @@ function ensureSdkLoaded() {
                     notes: a.notes || null
                 }));
                 const { error: aErr } = await client.from('accounts').upsert(accRows);
-                if (aErr) throw aErr;
+                if (aErr) throw new Error('Gagal upload accounts: ' + aErr.message);
             }
 
             // 3. Updates
@@ -504,7 +501,7 @@ function ensureSdkLoaded() {
                     notes: u.notes || null
                 }));
                 const { error: uErr } = await client.from('updates').upsert(updateRows);
-                if (uErr) throw uErr;
+                if (uErr) throw new Error('Gagal upload updates: ' + uErr.message);
             }
 
             // 4. Claims
@@ -525,7 +522,7 @@ function ensureSdkLoaded() {
                     };
                 });
                 const { error: cErr } = await client.from('claims').upsert(claimRows);
-                if (cErr) throw cErr;
+                if (cErr) throw new Error('Gagal upload claims: ' + cErr.message);
             }
 
             // 5. Account Sources
@@ -538,10 +535,12 @@ function ensureSdkLoaded() {
                     bonus_amount: Number(s.bonus_amount || 0),
                     total_received: Number(s.total_received || 0),
                     received_at: s.received_at || null,
+                    bonus_status: s.bonus_status || 'Not Eligible',
+                    multiplier: Number(s.multiplier || 1),
                     notes: s.notes || null
                 }));
                 const { error: sErr } = await client.from('account_sources').upsert(srcRows);
-                if (sErr) throw sErr;
+                if (sErr) throw new Error('Gagal upload account sources: ' + sErr.message);
             }
 
             // 6. Account Topups
@@ -558,7 +557,7 @@ function ensureSdkLoaded() {
                     notes: t.notes || null
                 }));
                 const { error: tErr } = await client.from('account_topups').upsert(tpRows);
-                if (tErr) throw tErr;
+                if (tErr) throw new Error('Gagal upload account topups: ' + tErr.message);
             }
 
             // 7. VC Transactions
@@ -579,16 +578,45 @@ function ensureSdkLoaded() {
                 }
             }
 
+            // 8. Settings
+            if (app.settings && typeof app.settings === 'object') {
+                const settingRows = Object.entries(app.settings).map(([k, v]) => ({
+                    key: k,
+                    value: v
+                }));
+                if (settingRows.length > 0) {
+                    const { error: setErr } = await client.from('settings').upsert(settingRows);
+                    if (setErr) console.warn('[SupabaseManager] Settings sync warning:', setErr);
+                }
+            }
+
             const modalMig = document.getElementById('modal-cloud-migration');
             if (modalMig) modalMig.classList.add('hidden');
 
-            if (typeof window.toast === 'function') {
-                window.toast('Seluruh data berhasil diunggah ke Supabase Cloud!', 'success');
-            }
             await syncFromCloud(false);
+            return { success: true };
         } catch (err) {
-            console.error('[SupabaseManager] Initial upload failed:', err);
-            alert('Gagal mengunggah data ke Supabase Cloud: ' + (err.message || err));
+            console.error('[SupabaseManager] uploadFullData error:', err);
+            return { success: false, error: err.message || err };
+        }
+    }
+
+    async function executeInitialUpload() {
+        const btn = document.getElementById('cloud-migration-confirm-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span><span>Mengunggah data ke Cloud...</span>`;
+        }
+
+        try {
+            const res = await uploadFullData();
+            if (res.success) {
+                if (typeof window.toast === 'function') {
+                    window.toast('Seluruh data berhasil diunggah ke Supabase Cloud!', 'success');
+                }
+            } else {
+                alert('Gagal mengunggah data ke Supabase Cloud: ' + res.error);
+            }
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -833,6 +861,7 @@ function ensureSdkLoaded() {
         handleLogout,
         syncFromCloud,
         executeInitialUpload,
+        uploadFullData,
         // Mutation hooks
         onAccountSaved,
         onAccountDeleted,

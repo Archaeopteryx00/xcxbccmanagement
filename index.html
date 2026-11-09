@@ -4243,18 +4243,34 @@
             }
             const file = fileInput.files[0];
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (!data || typeof data !== 'object' || !Array.isArray(data.branches) || !Array.isArray(data.accounts)) throw new Error('Format JSON backup tidak valid.');
-                    if (!confirm('Apakah Anda yakin ingin memulihkan data? Seluruh data saat ini akan ditimpa. (Snapshot otomatis data saat ini dibuat lebih dulu.)')) return;
+                    if (!data || typeof data !== 'object' || !Array.isArray(data.branches) || !Array.isArray(data.accounts)) {
+                        throw new Error('Format JSON backup tidak valid (harus memiliki daftar branches dan accounts).');
+                    }
+                    if (!confirm('Apakah Anda yakin ingin memulihkan data? Seluruh data saat ini akan ditimpa dengan data dari file backup.')) return;
                     if (!snapshotBeforeChange('before backup restore') && !confirm('Snapshot otomatis gagal dibuat. Tetap lanjutkan restore?')) return;
 
                     appData = normalizeAppData(data);
                     migrateMonthlyTrackingData();
-                    if (appData.updates.length && !appData.updates.some(u => u.update_id === currentSelectedUpdateId)) currentSelectedUpdateId = appData.updates[0].update_id;
+                    if (appData.updates.length && !appData.updates.some(u => u.update_id === currentSelectedUpdateId)) {
+                        currentSelectedUpdateId = appData.updates[0].update_id;
+                    }
                     saveData();
-                    toast('Database berhasil dipulihkan.');
+
+                    // Jika terhubung ke Cloud Supabase, langsung upload & sinkronkan data backup ke Cloud
+                    if (window.supabaseManager?.isLoggedIn()) {
+                        toast('Mengunggah data backup ke database Supabase Cloud...', 'info');
+                        const res = await window.supabaseManager.uploadFullData(appData);
+                        if (res && res.success) {
+                            toast('Database Cloud & lokal berhasil dipulihkan dari file backup!', 'success');
+                        } else {
+                            toast('Data lokal dipulihkan, namun gagal sinkronisasi cloud: ' + (res?.error || ''), 'warning');
+                        }
+                    } else {
+                        toast('Database berhasil dipulihkan dari file backup.');
+                    }
                     refreshCurrentTab();
                 } catch(err) {
                     alert(`Gagal memulihkan data: ${err.message}`);
