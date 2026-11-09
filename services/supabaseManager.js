@@ -516,295 +516,44 @@ function ensureSdkLoaded() {
             console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
             const app = customData || window.appData || {};
 
-            // ---- Try server-side RPC first (atomic, constraint-safe) ----
+            // ---- Server-side atomic restore via RPC ----
             if (typeof window.showLoading === 'function') {
-                window.showLoading('Memulihkan ke Cloud', 'Mengirim data ke server...', 20);
+                window.showLoading('Memulihkan ke Cloud', 'Menyimpan seluruh database ke server Cloud... (harap tunggu ~10-20 detik)', 30);
             }
             console.log('[SupabaseManager] Calling restore_full_backup RPC...');
-            // Wrap RPC in an 8-second timeout so it falls back swiftly if delayed
-            let rpcData, rpcErr;
+            
+            // Allow up to 60 seconds for server-side transactional restore
+            let rpcData = null;
+            let rpcErr = null;
             try {
                 const rpcResult = await Promise.race([
                     client.rpc('restore_full_backup', { payload: app }),
                     new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('RPC timeout setelah 8 detik')), 8000)
+                        setTimeout(() => reject(new Error('Koneksi timeout setelah 60 detik. Silakan periksa koneksi internet.')), 60000)
                     )
                 ]);
                 rpcData = rpcResult.data;
                 rpcErr  = rpcResult.error;
-            } catch (timeoutErr) {
-                rpcErr = { message: timeoutErr.message };
+            } catch (err) {
+                rpcErr = { message: err.message || String(err) };
             }
 
             if (rpcErr) {
-                console.warn('[SupabaseManager] RPC lambat/gagal, beralih langsung ke direct upload:', rpcErr.message);
-                if (typeof window.updateLoading === 'function') {
-                    window.updateLoading('Mengunggah ke Cloud', 'Menyiapkan database Cloud... (1/9)', 10);
-                }
-                // fall through to client-side direct delete-then-insert below
-            } else if (rpcData && rpcData.success === false) {
-                console.warn('[SupabaseManager] RPC returned error:', rpcData.error, rpcData.detail);
-                throw new Error('Restore gagal di server: ' + rpcData.error);
-            } else if (rpcData && rpcData.success === true) {
-                console.log('[SupabaseManager] RPC restore OK:', JSON.stringify(rpcData.counts));
-                if (typeof window.updateLoading === 'function') {
-                    window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 95);
-                }
-                await syncFromCloud(false);
-                console.log('[SupabaseManager] uploadFullData complete (via RPC).');
-                return { success: true };
+                console.error('[SupabaseManager] RPC error:', rpcErr);
+                throw new Error('Gagal restore ke Cloud: ' + (rpcErr.message || 'Unknown error'));
             }
 
-            // ---- Fallback: client-side DELETE then INSERT ----
-            // Upsert cannot be used here because (owner_id, branch_name) unique index causes
-            // a deadlock/hang when conflict column is branch_id PK. DELETE + INSERT avoids all conflicts.
-            // RLS scopes every DELETE to the current user's rows only.
-            console.log('[SupabaseManager] Using client-side direct DELETE + INSERT...');
-
-            const withTimeout = (promise, label, ms = 15000) =>
-                Promise.race([
-                    promise,
-                    new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout ${ms/1000}s: ${label}`)), ms))
-                ]);
-
-            // ---- DELETE phase (child → parent order, exclude append-only activity_logs) ----
-            if (typeof window.showLoading === 'function') {
-                window.showLoading('Mengunggah ke Cloud', 'Membersihkan data lama... (1/9)', 8);
-            }
-            const deleteOrder = ['claims','account_sources','account_topups','vc_transactions','accounts','updates','branches'];
-            for (const tbl of deleteOrder) {
-                console.log(`[SupabaseManager] Deleting user rows in ${tbl}...`);
-                const { error: delErr } = await withTimeout(
-                    client.from(tbl).delete().not('created_at', 'is', null),
-                    `delete ${tbl}`
-                );
-                if (delErr) console.warn(`[SupabaseManager] Delete ${tbl} note:`, delErr.message);
-                else console.log(`[SupabaseManager] Deleted ${tbl} OK`);
+            if (rpcData && rpcData.success === false) {
+                console.error('[SupabaseManager] RPC returned failure:', rpcData.error, rpcData.detail);
+                throw new Error('Restore gagal di server: ' + (rpcData.error || 'Terjadi kesalahan'));
             }
 
-            // ---- INSERT phase (parent → child order) ----
-
-            // ---- STEP 1: Branches ----
+            console.log('[SupabaseManager] RPC restore OK:', JSON.stringify(rpcData?.counts));
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data cabang... (2/9)', 20);
+                window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 95);
             }
-            if (app.branches && app.branches.length > 0) {
-                const branchRows = app.branches.map(b => ({
-                    branch_id: b.branch_id,
-                    branch_name: b.branch_name,
-                    email_login: b.email_login || null,
-                    status: normalizeBranchStatus(b.status),
-                    notes: b.notes || null
-                }));
-                console.log('[SupabaseManager] Inserting branches:', branchRows.length);
-                const { error: bErr } = await withTimeout(
-                    client.from('branches').insert(branchRows),
-                    'insert branches'
-                );
-                if (bErr) throw new Error('Gagal insert branches: ' + bErr.message);
-                console.log('[SupabaseManager] Branches OK');
-            }
-
-            // ---- STEP 2: Updates ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan periode update... (3/9)', 32);
-            }
-            if (app.updates && app.updates.length > 0) {
-                const updateRows = app.updates.map(u => ({
-                    update_id: u.update_id,
-                    update_name: u.update_name,
-                    start_date: u.start_date || null,
-                    end_date: u.end_date || null,
-                    status: normalizeUpdateStatus(u.status),
-                    reward_type: ['DM','VC'].includes(u.reward_type) ? u.reward_type : 'DM',
-                    reward_amount: Math.max(0, Number(u.reward_amount) || 0),
-                    eligibility_rule: ['all_active','ready_only'].includes(u.eligibility_rule) ? u.eligibility_rule : 'all_active',
-                    notes: u.notes || null
-                }));
-                console.log('[SupabaseManager] Inserting updates:', updateRows.length);
-                const { error: uErr } = await withTimeout(
-                    client.from('updates').insert(updateRows),
-                    'insert updates'
-                );
-                if (uErr) throw new Error('Gagal insert updates: ' + uErr.message);
-                console.log('[SupabaseManager] Updates OK');
-            }
-
-            // ---- STEP 3: Accounts ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data akun... (4/9)', 44);
-            }
-            if (app.accounts && app.accounts.length > 0) {
-                const validAccountStatuses = ['Pre-farm','Farming','Ready','Failed','Archived'];
-                const accRows = app.accounts.map(a => {
-                    const status = validAccountStatuses.includes(a.status) ? a.status : 'Pre-farm';
-                    const isArchived = status === 'Archived';
-                    return {
-                        account_id: a.account_id,
-                        branch_id: a.branch_id,
-                        server_code: a.server_code,
-                        level: Math.max(1, Number(a.level) || 1),
-                        status,
-                        status_before_archive: isArchived ? (a.status_before_archive || null) : null,
-                        archived_at: isArchived ? (toISODate(a.archived_at) || new Date().toISOString()) : null,
-                        auto_level_result: ['Untested','Success','Failed'].includes(a.auto_level_result) ? a.auto_level_result : 'Untested',
-                        notes: a.notes || null
-                    };
-                });
-                console.log('[SupabaseManager] Inserting accounts:', accRows.length);
-                const { error: aErr } = await withTimeout(
-                    client.from('accounts').insert(accRows),
-                    'insert accounts'
-                );
-                if (aErr) throw new Error('Gagal insert accounts: ' + aErr.message);
-                console.log('[SupabaseManager] Accounts OK');
-            }
-
-            // ---- STEP 4: Claims ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data klaim... (5/9)', 56);
-            }
-            if (app.claims && app.claims.length > 0) {
-                const validClaimStatuses = ['Pending','Claimed','Failed','Not Eligible'];
-                const claimRows = app.claims.map(c => {
-                    const claimStatus = validClaimStatuses.includes(c.claim_status) ? c.claim_status : 'Pending';
-                    const isClaimed = claimStatus === 'Claimed';
-                    let eligStatus = c.eligibility_status || 'Eligible';
-                    if (eligStatus === 'Not eligible') eligStatus = 'Not Eligible';
-                    if (!['Eligible','Not Eligible'].includes(eligStatus)) eligStatus = 'Eligible';
-                    return {
-                        claim_id: c.claim_id,
-                        update_id: c.update_id,
-                        account_id: c.account_id,
-                        branch_id_at_claim: c.branch_id_at_claim || null,
-                        eligibility_status: eligStatus,
-                        claim_status: claimStatus,
-                        reward_type: ['DM','VC'].includes(c.reward_type) ? c.reward_type : 'DM',
-                        reward_amount_claimed: isClaimed ? Math.max(0, Number(c.reward_amount_claimed ?? c.dm_claimed ?? 0)) : 0,
-                        claimed_at: isClaimed ? (toISODate(c.claimed_at) || new Date().toISOString()) : null,
-                        notes: c.notes || null
-                    };
-                });
-                console.log('[SupabaseManager] Inserting claims:', claimRows.length);
-                const { error: cErr } = await withTimeout(
-                    client.from('claims').insert(claimRows),
-                    'insert claims'
-                );
-                if (cErr) throw new Error('Gagal insert claims: ' + cErr.message);
-                console.log('[SupabaseManager] Claims OK');
-            }
-
-            // ---- STEP 5: Account Sources ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan sumber akun... (6/9)', 67);
-            }
-            if (app.account_sources && app.account_sources.length > 0) {
-                const srcRows = app.account_sources.map(s => ({
-                    source_id: s.source_id,
-                    account_id: s.account_id,
-                    source_type: s.source_type || 'DM',
-                    nominal: Math.max(0, Number(s.nominal) || 0),
-                    bonus_amount: Math.max(0, Number(s.bonus_amount) || 0),
-                    total_received: Math.max(0, Number(s.total_received) || 0),
-                    received_at: s.received_at || null,
-                    bonus_status: s.bonus_status || 'Not Eligible',
-                    multiplier: Math.max(1, Number(s.multiplier) || 1),
-                    notes: s.notes || null
-                }));
-                console.log('[SupabaseManager] Inserting account_sources:', srcRows.length);
-                const { error: sErr } = await withTimeout(
-                    client.from('account_sources').insert(srcRows),
-                    'insert account_sources'
-                );
-                if (sErr) throw new Error('Gagal insert account sources: ' + sErr.message);
-                console.log('[SupabaseManager] Account Sources OK');
-            }
-
-            // ---- STEP 6: Account Topups ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan top-up akun... (7/9)', 76);
-            }
-            if (app.account_topups && app.account_topups.length > 0) {
-                const tpRows = app.account_topups.map(t => ({
-                    topup_id: t.topup_id,
-                    account_id: t.account_id,
-                    nominal: Math.max(0, Number(t.nominal) || 0),
-                    bonus_status: t.bonus_status || 'None',
-                    bonus_amount: Math.max(0, Number(t.bonus_amount) || 0),
-                    total_received: Math.max(0, Number(t.total_received) || 0),
-                    topup_date: t.topup_date || null,
-                    bonus_claim_date: t.bonus_claim_date || null,
-                    notes: t.notes || null
-                }));
-                console.log('[SupabaseManager] Inserting account_topups:', tpRows.length);
-                const { error: tErr } = await withTimeout(
-                    client.from('account_topups').insert(tpRows),
-                    'insert account_topups'
-                );
-                if (tErr) throw new Error('Gagal insert account topups: ' + tErr.message);
-                console.log('[SupabaseManager] Account Topups OK');
-            }
-
-            // ---- STEP 7: VC Transactions ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan transaksi VC... (8/9)', 85);
-            }
-            if (app.vc_transactions && app.vc_transactions.length > 0) {
-                const vcRows = app.vc_transactions.map(v => ({
-                    transaction_id: v.transaction_id,
-                    account_id: v.account_id || null,
-                    source: v.source || 'Manual',
-                    vc_earned: Math.max(0, Number(v.vc_earned) || 0),
-                    vc_spent: Math.max(0, Number(v.vc_spent) || 0),
-                    transaction_date: v.transaction_date || v.date || new Date().toISOString().split('T')[0],
-                    description: v.description || v.notes || null
-                })).filter(v => v.vc_earned > 0 || v.vc_spent > 0);
-                if (vcRows.length > 0) {
-                    console.log('[SupabaseManager] Inserting vc_transactions:', vcRows.length);
-                    const { error: vcErr } = await withTimeout(
-                        client.from('vc_transactions').insert(vcRows),
-                        'insert vc_transactions'
-                    );
-                    if (vcErr) console.warn('[SupabaseManager] VC insert warning:', vcErr.message);
-                    else console.log('[SupabaseManager] VC Transactions OK');
-                }
-            }
-
-            // ---- STEP 8: Settings ----
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan pengaturan... (9/9)', 93);
-            }
-            if (app.settings && typeof app.settings === 'object') {
-                const settingRows = Object.entries(app.settings).map(([k, v]) => ({
-                    key: k,
-                    value: typeof v === 'string' ? v : String(v)
-                }));
-                if (settingRows.length > 0) {
-                    console.log('[SupabaseManager] Upserting settings:', settingRows.length);
-                    // Settings uses composite PK (owner_id, key) — upsert on key only will fail
-                    // So delete-then-insert here too
-                    await withTimeout(
-                        client.from('settings').delete().gte('created_at', '1970-01-01T00:00:00Z'),
-                        'delete settings'
-                    ).catch(() => {});
-                    const { error: setErr } = await withTimeout(
-                        client.from('settings').insert(settingRows),
-                        'insert settings'
-                    );
-                    if (setErr) console.warn('[SupabaseManager] Settings warning:', setErr.message);
-                    else console.log('[SupabaseManager] Settings OK');
-                }
-            }
-
-            const modalMig = document.getElementById('modal-cloud-migration');
-            if (modalMig) modalMig.classList.add('hidden');
-
-            if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 100);
-            }
-            console.log('[SupabaseManager] All tables uploaded. Starting syncFromCloud...');
             await syncFromCloud(false);
-            console.log('[SupabaseManager] uploadFullData complete (fallback DELETE+INSERT).');
+            console.log('[SupabaseManager] uploadFullData complete.');
             return { success: true };
         } catch (err) {
             console.error('[SupabaseManager] uploadFullData error:', err);
