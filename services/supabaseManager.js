@@ -16,7 +16,23 @@
     // -------------------------------------------------------------------------
     // 1. Dynamic SDK Loader & Lazy Client Factory
     // -------------------------------------------------------------------------
-    function ensureSdkLoaded() {
+    // -------------------------------------------------------------------------
+// 1. Utility helpers
+// -------------------------------------------------------------------------
+/**
+ * Safely set innerText if element exists.
+ */
+function safeSetText(el, txt) {
+  if (el) el.innerText = txt;
+}
+/**
+ * Safely set innerHTML if element exists.
+ */
+function safeSetHTML(el, html) {
+  if (el) el.innerHTML = html;
+}
+
+function ensureSdkLoaded() {
         if (window.supabase && typeof window.supabase.createClient === 'function') {
             return Promise.resolve(true);
         }
