@@ -467,6 +467,28 @@ function ensureSdkLoaded() {
     // -------------------------------------------------------------------------
     // 5. Full Data Upload & Backup Restoration to Cloud
     // -------------------------------------------------------------------------
+
+    // Helper: normalize update status from legacy values
+    function normalizeUpdateStatus(s) {
+        const map = { 'Open': 'Active', 'open': 'Active', 'active': 'Active', 'closed': 'Closed', 'archived': 'Archived', 'draft': 'Draft' };
+        return map[s] || (['Active','Closed','Archived','Draft'].includes(s) ? s : 'Active');
+    }
+
+    // Helper: normalize branch status from legacy values
+    function normalizeBranchStatus(s) {
+        return ['Active','Inactive','Archived'].includes(s) ? s : 'Active';
+    }
+
+    // Helper: safe ISO date string (accepts 'YYYY-MM-DD' or full ISO)
+    function toISODate(val) {
+        if (!val) return null;
+        try {
+            const d = new Date(val);
+            if (isNaN(d.getTime())) return null;
+            return d.toISOString();
+        } catch { return null; }
+    }
+
     async function uploadFullData(customData = null) {
         const client = getClient();
         if (!client || !currentUser) {
@@ -477,156 +499,201 @@ function ensureSdkLoaded() {
             console.log('[SupabaseManager] Starting full data upload/restore to Supabase Cloud...');
             const app = customData || window.appData || {};
 
+            // ---- STEP 1: Branches ----
             if (typeof window.showLoading === 'function') {
-                window.showLoading('Mengunggah ke Cloud', 'Menyimpan data cabang...', 15);
+                window.showLoading('Mengunggah ke Cloud', 'Menyimpan data cabang... (1/8)', 10);
             }
-
-            // 1. Branches
             if (app.branches && app.branches.length > 0) {
                 const branchRows = app.branches.map(b => ({
                     branch_id: b.branch_id,
                     branch_name: b.branch_name,
                     email_login: b.email_login || null,
-                    status: b.status || 'Active',
+                    status: normalizeBranchStatus(b.status),
                     notes: b.notes || null
                 }));
-                const { error: bErr } = await client.from('branches').upsert(branchRows);
+                console.log('[SupabaseManager] Upserting branches:', branchRows.length);
+                const { error: bErr } = await client.from('branches').upsert(branchRows, { onConflict: 'branch_id' });
                 if (bErr) throw new Error('Gagal upload branches: ' + bErr.message);
+                console.log('[SupabaseManager] Branches OK');
             }
 
+            // ---- STEP 2: Accounts ----
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data akun...', 35);
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data akun... (2/8)', 25);
             }
-
-            // 2. Accounts
             if (app.accounts && app.accounts.length > 0) {
-                const accRows = app.accounts.map(a => ({
-                    account_id: a.account_id,
-                    branch_id: a.branch_id,
-                    server_code: a.server_code,
-                    level: Number(a.level || 1),
-                    status: a.status || 'Pre-farm',
-                    status_before_archive: a.status_before_archive || null,
-                    archived_at: a.archived_at ? new Date(a.archived_at).toISOString() : null,
-                    auto_level_result: a.auto_level_result || 'Untested',
-                    notes: a.notes || null
-                }));
-                const { error: aErr } = await client.from('accounts').upsert(accRows);
+                const validAccountStatuses = ['Pre-farm','Farming','Ready','Failed','Archived'];
+                const accRows = app.accounts.map(a => {
+                    const status = validAccountStatuses.includes(a.status) ? a.status : 'Pre-farm';
+                    const isArchived = status === 'Archived';
+                    return {
+                        account_id: a.account_id,
+                        branch_id: a.branch_id,
+                        server_code: a.server_code,
+                        level: Math.max(1, Number(a.level) || 1),
+                        status,
+                        // status_before_archive only valid when archived
+                        status_before_archive: isArchived ? (a.status_before_archive || null) : null,
+                        // archived_at must be set when archived
+                        archived_at: isArchived ? (toISODate(a.archived_at) || new Date().toISOString()) : null,
+                        auto_level_result: ['Untested','Success','Failed'].includes(a.auto_level_result)
+                            ? a.auto_level_result : 'Untested',
+                        notes: a.notes || null
+                    };
+                });
+                console.log('[SupabaseManager] Upserting accounts:', accRows.length);
+                const { error: aErr } = await client.from('accounts').upsert(accRows, { onConflict: 'account_id' });
                 if (aErr) throw new Error('Gagal upload accounts: ' + aErr.message);
+                console.log('[SupabaseManager] Accounts OK');
             }
 
+            // ---- STEP 3: Updates ----
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan periode update & klaim...', 55);
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan periode update... (3/8)', 38);
             }
-
-            // 3. Updates
             if (app.updates && app.updates.length > 0) {
                 const updateRows = app.updates.map(u => ({
                     update_id: u.update_id,
                     update_name: u.update_name,
                     start_date: u.start_date || null,
                     end_date: u.end_date || null,
-                    status: u.status || 'Active',
-                    reward_type: u.reward_type || 'DM',
-                    reward_amount: Number(u.reward_amount || 0),
-                    eligibility_rule: u.eligibility_rule || 'all_active',
+                    // Legacy backup may use 'Open' — normalize to 'Active'
+                    status: normalizeUpdateStatus(u.status),
+                    // Legacy backup may not have reward_type/reward_amount
+                    reward_type: ['DM','VC'].includes(u.reward_type) ? u.reward_type : 'DM',
+                    reward_amount: Math.max(0, Number(u.reward_amount) || 0),
+                    eligibility_rule: ['all_active','ready_only'].includes(u.eligibility_rule)
+                        ? u.eligibility_rule : 'all_active',
                     notes: u.notes || null
                 }));
-                const { error: uErr } = await client.from('updates').upsert(updateRows);
+                console.log('[SupabaseManager] Upserting updates:', updateRows.length, updateRows.map(r => r.status));
+                const { error: uErr } = await client.from('updates').upsert(updateRows, { onConflict: 'update_id' });
                 if (uErr) throw new Error('Gagal upload updates: ' + uErr.message);
+                console.log('[SupabaseManager] Updates OK');
             }
 
-            // 4. Claims
+            // ---- STEP 4: Claims ----
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan data klaim... (4/8)', 50);
+            }
             if (app.claims && app.claims.length > 0) {
+                const validClaimStatuses = ['Pending','Claimed','Failed','Not Eligible'];
                 const claimRows = app.claims.map(c => {
-                    const isClaimed = c.claim_status === 'Claimed';
+                    const claimStatus = validClaimStatuses.includes(c.claim_status) ? c.claim_status : 'Pending';
+                    const isClaimed = claimStatus === 'Claimed';
+                    // Normalize eligibility — legacy uses 'Not eligible' (lowercase e)
+                    let eligStatus = c.eligibility_status || 'Eligible';
+                    if (eligStatus === 'Not eligible') eligStatus = 'Not Eligible';
+                    if (!['Eligible','Not Eligible'].includes(eligStatus)) eligStatus = 'Eligible';
+
                     return {
                         claim_id: c.claim_id,
                         update_id: c.update_id,
                         account_id: c.account_id,
                         branch_id_at_claim: c.branch_id_at_claim || null,
-                        eligibility_status: c.eligibility_status === 'Not eligible' ? 'Not Eligible' : (c.eligibility_status || 'Eligible'),
-                        claim_status: c.claim_status || 'Pending',
-                        reward_type: c.reward_type || 'DM',
-                        reward_amount_claimed: isClaimed ? Number(c.reward_amount_claimed || c.dm_claimed || 0) : 0,
-                        claimed_at: isClaimed ? (c.claimed_at ? new Date(c.claimed_at).toISOString() : new Date().toISOString()) : null,
+                        eligibility_status: eligStatus,
+                        claim_status: claimStatus,
+                        // Legacy backup uses 'dm_claimed' field, new uses 'reward_amount_claimed'
+                        reward_type: ['DM','VC'].includes(c.reward_type) ? c.reward_type : 'DM',
+                        reward_amount_claimed: isClaimed
+                            ? Math.max(0, Number(c.reward_amount_claimed ?? c.dm_claimed ?? 0))
+                            : 0,
+                        // claimed_at must not be null when status is 'Claimed'
+                        claimed_at: isClaimed
+                            ? (toISODate(c.claimed_at) || new Date().toISOString())
+                            : null,
                         notes: c.notes || null
                     };
                 });
-                const { error: cErr } = await client.from('claims').upsert(claimRows);
+                console.log('[SupabaseManager] Upserting claims:', claimRows.length);
+                const { error: cErr } = await client.from('claims').upsert(claimRows, { onConflict: 'claim_id' });
                 if (cErr) throw new Error('Gagal upload claims: ' + cErr.message);
+                console.log('[SupabaseManager] Claims OK');
             }
 
+            // ---- STEP 5: Account Sources ----
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan transaksi sumber & topup...', 75);
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan sumber akun... (5/8)', 63);
             }
-
-            // 5. Account Sources
             if (app.account_sources && app.account_sources.length > 0) {
                 const srcRows = app.account_sources.map(s => ({
                     source_id: s.source_id,
                     account_id: s.account_id,
                     source_type: s.source_type || 'DM',
-                    nominal: Number(s.nominal || 0),
-                    bonus_amount: Number(s.bonus_amount || 0),
-                    total_received: Number(s.total_received || 0),
+                    nominal: Math.max(0, Number(s.nominal) || 0),
+                    bonus_amount: Math.max(0, Number(s.bonus_amount) || 0),
+                    total_received: Math.max(0, Number(s.total_received) || 0),
                     received_at: s.received_at || null,
                     bonus_status: s.bonus_status || 'Not Eligible',
-                    multiplier: Number(s.multiplier || 1),
+                    multiplier: Math.max(1, Number(s.multiplier) || 1),
                     notes: s.notes || null
                 }));
-                const { error: sErr } = await client.from('account_sources').upsert(srcRows);
+                console.log('[SupabaseManager] Upserting account_sources:', srcRows.length);
+                const { error: sErr } = await client.from('account_sources').upsert(srcRows, { onConflict: 'source_id' });
                 if (sErr) throw new Error('Gagal upload account sources: ' + sErr.message);
+                console.log('[SupabaseManager] Account Sources OK');
             }
 
-            // 6. Account Topups
+            // ---- STEP 6: Account Topups ----
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan top-up akun... (6/8)', 73);
+            }
             if (app.account_topups && app.account_topups.length > 0) {
                 const tpRows = app.account_topups.map(t => ({
                     topup_id: t.topup_id,
                     account_id: t.account_id,
-                    nominal: Number(t.nominal || 0),
+                    nominal: Math.max(0, Number(t.nominal) || 0),
                     bonus_status: t.bonus_status || 'None',
-                    bonus_amount: Number(t.bonus_amount || 0),
-                    total_received: Number(t.total_received || 0),
+                    bonus_amount: Math.max(0, Number(t.bonus_amount) || 0),
+                    total_received: Math.max(0, Number(t.total_received) || 0),
                     topup_date: t.topup_date || null,
                     bonus_claim_date: t.bonus_claim_date || null,
                     notes: t.notes || null
                 }));
-                const { error: tErr } = await client.from('account_topups').upsert(tpRows);
+                console.log('[SupabaseManager] Upserting account_topups:', tpRows.length);
+                const { error: tErr } = await client.from('account_topups').upsert(tpRows, { onConflict: 'topup_id' });
                 if (tErr) throw new Error('Gagal upload account topups: ' + tErr.message);
+                console.log('[SupabaseManager] Account Topups OK');
             }
 
+            // ---- STEP 7: VC Transactions ----
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan riwayat transaksi VC & pengaturan...', 90);
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan transaksi VC... (7/8)', 83);
             }
-
-            // 7. VC Transactions
             if (app.vc_transactions && app.vc_transactions.length > 0) {
                 const vcRows = app.vc_transactions.map(v => ({
                     transaction_id: v.transaction_id,
                     account_id: v.account_id || null,
                     source: v.source || 'Manual',
-                    vc_earned: Number(v.vc_earned || 0),
-                    vc_spent: Number(v.vc_spent || 0),
+                    vc_earned: Math.max(0, Number(v.vc_earned) || 0),
+                    vc_spent: Math.max(0, Number(v.vc_spent) || 0),
                     transaction_date: v.transaction_date || v.date || new Date().toISOString().split('T')[0],
-                    description: v.description || null
-                })).filter(v => (v.vc_earned > 0 || v.vc_spent > 0));
+                    description: v.description || v.notes || null
+                })).filter(v => v.vc_earned > 0 || v.vc_spent > 0);
 
                 if (vcRows.length > 0) {
-                    const { error: vcErr } = await client.from('vc_transactions').upsert(vcRows);
-                    if (vcErr) console.warn('[SupabaseManager] VC sync warning:', vcErr);
+                    console.log('[SupabaseManager] Upserting vc_transactions:', vcRows.length);
+                    const { error: vcErr } = await client.from('vc_transactions').upsert(vcRows, { onConflict: 'transaction_id' });
+                    if (vcErr) console.warn('[SupabaseManager] VC sync warning:', vcErr.message || vcErr);
+                    else console.log('[SupabaseManager] VC Transactions OK');
                 }
             }
 
-            // 8. Settings
+            // ---- STEP 8: Settings ----
+            if (typeof window.updateLoading === 'function') {
+                window.updateLoading('Mengunggah ke Cloud', 'Menyimpan pengaturan... (8/8)', 93);
+            }
             if (app.settings && typeof app.settings === 'object') {
                 const settingRows = Object.entries(app.settings).map(([k, v]) => ({
                     key: k,
-                    value: v
+                    // DB stores value as text — serialize non-strings
+                    value: typeof v === 'string' ? v : String(v)
                 }));
                 if (settingRows.length > 0) {
-                    const { error: setErr } = await client.from('settings').upsert(settingRows);
-                    if (setErr) console.warn('[SupabaseManager] Settings sync warning:', setErr);
+                    console.log('[SupabaseManager] Upserting settings:', settingRows.length);
+                    const { error: setErr } = await client.from('settings').upsert(settingRows, { onConflict: 'key' });
+                    if (setErr) console.warn('[SupabaseManager] Settings sync warning:', setErr.message || setErr);
+                    else console.log('[SupabaseManager] Settings OK');
                 }
             }
 
@@ -634,13 +701,15 @@ function ensureSdkLoaded() {
             if (modalMig) modalMig.classList.add('hidden');
 
             if (typeof window.updateLoading === 'function') {
-                window.updateLoading('Selesai!', 'Menyinkronkan data kembali...', 100);
+                window.updateLoading('Selesai!', 'Menyinkronkan data dari Cloud...', 100);
             }
+            console.log('[SupabaseManager] All tables uploaded. Starting syncFromCloud...');
             await syncFromCloud(false);
+            console.log('[SupabaseManager] uploadFullData complete.');
             return { success: true };
         } catch (err) {
             console.error('[SupabaseManager] uploadFullData error:', err);
-            return { success: false, error: err.message || err };
+            return { success: false, error: err.message || String(err) };
         } finally {
             if (typeof window.hideLoading === 'function') {
                 window.hideLoading();
