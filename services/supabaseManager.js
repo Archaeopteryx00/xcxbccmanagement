@@ -119,37 +119,42 @@ function ensureSdkLoaded() {
     // -------------------------------------------------------------------------
     // 2. Initialization & Session Restoration
     // -------------------------------------------------------------------------
-    async function init() {
-        console.log('[SupabaseManager] Initializing client...');
-        let client = getClient();
+    let initPromise = null;
+    function init() {
+        if (initPromise) return initPromise;
+        initPromise = (async () => {
+            console.log('[SupabaseManager] Initializing client...');
+            let client = getClient();
 
-        if (!client) {
-            console.log('[SupabaseManager] SDK not detected yet, loading dynamically...');
-            const loaded = await ensureSdkLoaded();
-            if (loaded) {
-                client = getClient();
-            }
-        }
-
-        if (client) {
-            try {
-                const { data: { session }, error } = await client.auth.getSession();
-                if (error) console.warn('[SupabaseManager] getSession error:', error);
-                currentUser = session?.user || null;
-                updateCloudUI();
-
-                if (currentUser) {
-                    console.log(`[SupabaseManager] Restored active session for: ${currentUser.email}`);
-                    await syncFromCloud(false);
+            if (!client) {
+                console.log('[SupabaseManager] SDK not detected yet, loading dynamically...');
+                const loaded = await ensureSdkLoaded();
+                if (loaded) {
+                    client = getClient();
                 }
-            } catch (err) {
-                console.error('[SupabaseManager] Session restore error:', err);
+            }
+
+            if (client) {
+                try {
+                    const { data: { session }, error } = await client.auth.getSession();
+                    if (error) console.warn('[SupabaseManager] getSession error:', error);
+                    currentUser = session?.user || null;
+                    updateCloudUI();
+
+                    if (currentUser) {
+                        console.log(`[SupabaseManager] Restored active session for: ${currentUser.email}`);
+                        await syncFromCloud(false);
+                    }
+                } catch (err) {
+                    console.error('[SupabaseManager] Session restore error:', err);
+                    updateCloudUI();
+                }
+            } else {
+                console.warn('[SupabaseManager] Running in offline LocalStorage mode.');
                 updateCloudUI();
             }
-        } else {
-            console.warn('[SupabaseManager] Running in offline LocalStorage mode.');
-            updateCloudUI();
-        }
+        })();
+        return initPromise;
     }
 
     // -------------------------------------------------------------------------
@@ -483,6 +488,9 @@ function ensureSdkLoaded() {
                     }));
                 }
 
+                if (!window.appData.settings || typeof window.appData.settings !== 'object') {
+                    window.appData.settings = {};
+                }
                 if (Array.isArray(cloudData.settings) && cloudData.settings.length > 0) {
                     cloudData.settings.forEach(s => {
                         if (s.key && s.value !== undefined) {
@@ -490,14 +498,29 @@ function ensureSdkLoaded() {
                         }
                     });
                 }
+
+                // Ensure currentSelectedUpdateId is synced if available
+                if (window.appData.updates && window.appData.updates.length > 0) {
+                    if (!window.currentSelectedUpdateId || !window.appData.updates.some(u => u.update_id === window.currentSelectedUpdateId)) {
+                        window.currentSelectedUpdateId = window.appData.updates[0].update_id;
+                    }
+                }
+
+                // Re-normalize if helper exists
+                if (typeof window.normalizeAppData === 'function') {
+                    window.appData = window.normalizeAppData(window.appData);
+                }
+
+                console.log(`[SupabaseManager] Synced data applied: ${window.appData.accounts.length} accounts, ${window.appData.claims.length} claims, ${window.appData.branches.length} branches.`);
             }
 
             // Save fresh data to local cache
             if (typeof window.saveData === 'function') window.saveData();
             if (typeof window.refreshCurrentTab === 'function') window.refreshCurrentTab();
+            if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
 
             if (typeof window.toast === 'function') {
-                window.toast('Data berhasil disinkronkan dari Supabase Cloud', 'success');
+                window.toast(`Data tersinkronisasi: ${window.appData?.accounts?.length || 0} akun dari Cloud`, 'success');
             }
         } catch (err) {
             console.error('[SupabaseManager] Sync error:', err);
