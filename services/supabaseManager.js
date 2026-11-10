@@ -677,6 +677,26 @@ function ensureSdkLoaded() {
         });
     }
 
+    function onAccountsBulkUpdated(accounts) {
+        const client = getClient();
+        if (!client || !currentUser || !Array.isArray(accounts) || accounts.length === 0) return;
+        const rows = accounts.map(acc => ({
+            account_id: acc.account_id,
+            branch_id: acc.branch_id,
+            server_code: acc.server_code,
+            level: Number(acc.level || 1),
+            status: acc.status || 'Pre-farm',
+            status_before_archive: acc.status_before_archive || null,
+            archived_at: acc.archived_at ? new Date(acc.archived_at).toISOString() : null,
+            auto_level_result: acc.auto_level_result || 'Untested',
+            notes: acc.notes || null
+        }));
+        client.from('accounts').upsert(rows).then(({ error }) => {
+            if (error) console.error('[Supabase Cloud Mutation Error: Bulk Accounts]', error);
+            else console.log(`[SupabaseManager] Cloud bulk updated: ${rows.length} accounts`);
+        });
+    }
+
     function onAccountDeleted(accountId) {
         const client = getClient();
         if (!client || !currentUser || !accountId) return;
@@ -893,6 +913,7 @@ function ensureSdkLoaded() {
         uploadFullData,
         // Mutation hooks
         onAccountSaved,
+        onAccountsBulkUpdated,
         onAccountDeleted,
         onAccountArchived,
         onAccountRestored,

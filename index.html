@@ -732,12 +732,36 @@
                     </div>
                 </div>
 
+                <!-- Account Bulk Actions Bar (Shown when >= 1 account checked) -->
+                <div id="account-bulk-bar" class="hidden bg-neutral-900 text-white px-4 py-2.5 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-md transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-semibold bg-neutral-800 text-neutral-200 px-2.5 py-1 rounded-md border border-neutral-700">
+                            <span id="account-selected-count" class="font-bold text-white">0</span> akun terpilih
+                        </span>
+                        <span class="text-xs text-neutral-400 hidden sm:inline">Aksi massal akun yang ditandai:</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="quickSetSelectedReady()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" title="Ubah status akun terpilih menjadi Ready dan Level 23">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Set Ready (Lv 23)
+                        </button>
+                        <button type="button" onclick="openBulkEditAccountModal()" class="bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Bulk Edit...
+                        </button>
+                        <button type="button" onclick="clearAccountSelection()" class="text-xs text-neutral-400 hover:text-white px-2 py-1.5 transition-colors">
+                            Batal
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Accounts Data Table (PRD V1.2 Columns) -->
                 <div class="bg-surface rounded-xl border border-muted shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead class="bg-neutral-50 border-b border-muted uppercase font-semibold text-neutral-400 text-[10px]">
                                 <tr>
+                                    <th class="px-3 py-2.5 w-8 text-center">
+                                        <input type="checkbox" id="account-select-visible" onchange="toggleVisibleAccountSelection(this.checked)" class="rounded border-muted cursor-pointer" title="Select all visible accounts">
+                                    </th>
                                     <th class="px-3.5 py-2.5">Branch</th>
                                     <th class="px-3.5 py-2.5">Server Code</th>
                                     <th class="px-3.5 py-2.5">Level</th>
@@ -1717,7 +1741,7 @@
                     </div>
                     <div>
                         <label class="block font-medium text-neutral-700 mb-1">Farming Status</label>
-                        <select id="account-status" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                        <select id="account-status" onchange="onSingleAccountStatusChange(this.value)" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
                             <option value="Pre-farm">Pre-farm</option>
                             <option value="Farming">Farming</option>
                             <option value="Ready">Ready</option>
@@ -1748,6 +1772,108 @@
                 <div class="pt-2 flex justify-end gap-2">
                     <button type="button" onclick="closeModal('modal-account')" class="px-3.5 py-1.5 border border-muted rounded-lg text-neutral-600">Cancel</button>
                     <button type="submit" class="px-3.5 py-1.5 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800">Save Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Bulk Edit Accounts -->
+    <div id="modal-bulk-edit-accounts" class="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-surface rounded-xl border border-muted shadow-lg w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="px-5 py-3.5 border-b border-muted flex justify-between items-center bg-neutral-50">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-neutral-800"></i>
+                    <h3 class="font-bold text-xs text-neutral-900">Bulk Edit Akun</h3>
+                    <span id="bulk-edit-count-badge" class="font-bold text-[10px] bg-neutral-900 text-white px-2 py-0.5 rounded-full">0 Akun</span>
+                </div>
+                <button type="button" onclick="closeModal('modal-bulk-edit-accounts')" class="text-neutral-400 hover:text-neutral-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-bulk-edit-accounts" onsubmit="handleExecuteBulkEditAccounts(event)" class="p-5 space-y-4 text-xs overflow-y-auto">
+                <!-- Preview selected accounts -->
+                <div class="bg-neutral-50 border border-muted rounded-lg p-2.5">
+                    <span class="block text-[10px] font-semibold text-neutral-500 uppercase tracking-wider mb-1">Target Akun Terpilih:</span>
+                    <div id="bulk-edit-account-preview" class="text-neutral-700 font-mono text-[11px] max-h-16 overflow-y-auto leading-relaxed break-words"></div>
+                </div>
+
+                <!-- Quick Presets -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-neutral-600 mb-1.5">Preset Cepat:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="applyBulkPreset('ready')" class="px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-medium text-left flex items-center justify-between transition-colors">
+                            <span>🚀 Set Ready (Lv 23)</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-emerald-600"></i>
+                        </button>
+                        <button type="button" onclick="applyBulkPreset('farming')" class="px-2.5 py-1.5 rounded-lg border border-amber-500/30 bg-amber-50 hover:bg-amber-100 text-amber-800 font-medium text-left flex items-center justify-between transition-colors">
+                            <span>🌾 Set Farming</span>
+                            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-amber-600"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status & Level -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-muted">
+                    <div>
+                        <label class="block font-medium text-neutral-700 mb-1">Farming Status</label>
+                        <select id="bulk-edit-status" onchange="onBulkStatusChange(this.value)" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                            <option value="NO_CHANGE">[ Tidak Diubah ]</option>
+                            <option value="Ready">Ready (Base Level 23)</option>
+                            <option value="Farming">Farming</option>
+                            <option value="Pre-farm">Pre-farm</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Archived">Archived</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="font-medium text-neutral-700">Level Akun</label>
+                            <label class="inline-flex items-center gap-1 text-[11px] text-neutral-500 cursor-pointer select-none">
+                                <input type="checkbox" id="bulk-edit-level-enable" onchange="toggleBulkLevelInput(this.checked)" class="rounded border-muted"> Ubah
+                            </label>
+                        </div>
+                        <input type="number" id="bulk-edit-level" value="23" min="1" disabled class="w-full p-2 border border-muted rounded-lg bg-neutral-100 text-neutral-500 disabled:opacity-60 focus:outline-none focus:border-neutral-900">
+                    </div>
+                </div>
+
+                <!-- Branch & Auto-level -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-medium text-neutral-700 mb-1">Pindah Branch</label>
+                        <select id="bulk-edit-branch" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                            <option value="NO_CHANGE">[ Tidak Diubah ]</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium text-neutral-700 mb-1">Auto-Level Result</label>
+                        <select id="bulk-edit-autolevel" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900">
+                            <option value="NO_CHANGE">[ Tidak Diubah ]</option>
+                            <option value="Untested">Untested</option>
+                            <option value="Success">Success</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Notes update option -->
+                <div>
+                    <label class="block font-medium text-neutral-700 mb-1">Catatan (Notes)</label>
+                    <select id="bulk-edit-notes-mode" onchange="toggleBulkNotesMode(this.value)" class="w-full p-2 border border-muted rounded-lg bg-surface focus:outline-none focus:border-neutral-900 mb-2">
+                        <option value="NO_CHANGE">[ Tidak Diubah ]</option>
+                        <option value="append">Tambah Catatan di Akhir (Append)</option>
+                        <option value="overwrite">Ganti Catatan Sepenuhnya (Overwrite)</option>
+                    </select>
+                    <div id="bulk-edit-notes-wrap" class="hidden">
+                        <textarea id="bulk-edit-notes" rows="2" placeholder="Tulis catatan yang akan diterapkan ke semua akun terpilih..." class="w-full p-2 border border-muted rounded-lg focus:outline-none focus:border-neutral-900"></textarea>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-muted flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-bulk-edit-accounts')" class="px-3.5 py-1.5 border border-muted rounded-lg text-neutral-600 hover:bg-neutral-100">Batal</button>
+                    <button type="submit" class="px-4 py-1.5 bg-neutral-900 text-white rounded-lg font-semibold hover:bg-neutral-800 shadow-sm flex items-center gap-1.5">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan ke Akun Terpilih
+                    </button>
                 </div>
             </form>
         </div>
@@ -2838,6 +2964,19 @@
                 return matchSearch && matchBranch && matchStatus && matchBonus;
             });
 
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="px-4 py-8 text-center text-neutral-400">
+                            Tidak ada akun yang sesuai dengan filter.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                updateAccountBulkBarState();
+                return;
+            }
+
             filtered.forEach(a => {
                 const totals = getAccountTotals(a.account_id);
                 const tr = document.createElement('tr');
@@ -2845,6 +2984,9 @@
                 tr.className = 'hover:bg-neutral-50' + (isArch ? ' opacity-60' : '');
                 const dupBadge = dupCodes.has(normCode(a.server_code)) ? ' <span class="ml-1 px-1 rounded text-[9px] font-bold border border-neutral-400 text-neutral-600" title="Another account has the same server code">DUP</span>' : '';
                 tr.innerHTML = `
+                    <td class="px-3 py-2 text-center">
+                        <input type="checkbox" class="account-row-select rounded border-muted cursor-pointer" value="${a.account_id}" onchange="updateAccountBulkBarState()">
+                    </td>
                     <td class="px-3.5 py-2 font-semibold text-neutral-800">${esc(branchMap[a.branch_id] || 'Unknown')}</td>
                     <td class="px-3.5 py-2 font-bold text-neutral-900">${esc(a.server_code)}${dupBadge}</td>
                     <td class="px-3.5 py-2">Lvl ${a.level}</td>
@@ -2863,6 +3005,7 @@
                 tbody.appendChild(tr);
             });
             lucide.createIcons();
+            updateAccountBulkBarState();
         }
 
         function calculateTotals() {
@@ -4881,6 +5024,9 @@
                     if (status === 'Archived') { newAcc.status_before_archive = 'Pre-farm'; newAcc.archived_at = today; }
                     appData.accounts.push(newAcc);
                     addLog('CREATE_ACCOUNT', 'Account', newAcc.account_id, null, newAcc);
+                    if (window.supabaseManager && typeof window.supabaseManager.onAccountSaved === 'function') {
+                        window.supabaseManager.onAccountSaved(newAcc, true);
+                    }
                     toast('Akun berhasil ditambahkan.');
                 } else {
                     const acc = existing;
@@ -4897,6 +5043,9 @@
                         acc.notes = notes;
                         acc.updated_at = today;
                         addLog('UPDATE_ACCOUNT', 'Account', id, oldVal, acc);
+                        if (window.supabaseManager && typeof window.supabaseManager.onAccountSaved === 'function') {
+                            window.supabaseManager.onAccountSaved(acc, false);
+                        }
                         toast('Akun berhasil diperbarui.');
                     }
                 }
@@ -4912,6 +5061,294 @@
         function editAccount(id) {
             const acc = appData.accounts.find(x => x.account_id === id);
             if (acc) openAccountModal(acc);
+        }
+
+        function onSingleAccountStatusChange(status) {
+            if (status === 'Ready') {
+                const lvlInput = document.getElementById('account-level');
+                if (lvlInput) {
+                    const cur = Number(lvlInput.value) || 1;
+                    if (cur < 23) {
+                        lvlInput.value = 23;
+                    }
+                }
+            }
+        }
+
+        function getSelectedAccountIds() {
+            const boxes = document.querySelectorAll('.account-row-select:checked');
+            return Array.from(boxes).map(b => b.value);
+        }
+
+        function updateAccountBulkBarState() {
+            const selectedIds = getSelectedAccountIds();
+            const bar = document.getElementById('account-bulk-bar');
+            const countSpan = document.getElementById('account-selected-count');
+            const selectAllBox = document.getElementById('account-select-visible');
+
+            if (countSpan) countSpan.textContent = selectedIds.length;
+            if (bar) {
+                if (selectedIds.length > 0) {
+                    bar.classList.remove('hidden');
+                } else {
+                    bar.classList.add('hidden');
+                }
+            }
+
+            if (selectAllBox) {
+                const allBoxes = document.querySelectorAll('.account-row-select');
+                if (allBoxes.length === 0) {
+                    selectAllBox.checked = false;
+                    selectAllBox.indeterminate = false;
+                } else if (selectedIds.length === allBoxes.length) {
+                    selectAllBox.checked = true;
+                    selectAllBox.indeterminate = false;
+                } else if (selectedIds.length > 0) {
+                    selectAllBox.checked = false;
+                    selectAllBox.indeterminate = true;
+                } else {
+                    selectAllBox.checked = false;
+                    selectAllBox.indeterminate = false;
+                }
+            }
+        }
+
+        function toggleVisibleAccountSelection(checked) {
+            const boxes = document.querySelectorAll('.account-row-select');
+            boxes.forEach(b => { b.checked = checked; });
+            updateAccountBulkBarState();
+        }
+
+        function clearAccountSelection() {
+            const boxes = document.querySelectorAll('.account-row-select');
+            boxes.forEach(b => { b.checked = false; });
+            const selectAllBox = document.getElementById('account-select-visible');
+            if (selectAllBox) {
+                selectAllBox.checked = false;
+                selectAllBox.indeterminate = false;
+            }
+            updateAccountBulkBarState();
+        }
+
+        function quickSetSelectedReady() {
+            const selectedIds = getSelectedAccountIds();
+            if (!selectedIds.length) {
+                toast('Pilih minimal satu akun terlebih dahulu.');
+                return;
+            }
+            if (!confirm(`Ubah ${selectedIds.length} akun terpilih menjadi status "Ready" dan Level 23?`)) {
+                return;
+            }
+            executeAccountsBulkUpdate({
+                status: 'Ready',
+                changeLevel: true,
+                level: 23
+            });
+        }
+
+        function openBulkEditAccountModal() {
+            const selectedIds = getSelectedAccountIds();
+            if (!selectedIds.length) {
+                toast('Pilih minimal satu akun terlebih dahulu.');
+                return;
+            }
+
+            const badge = document.getElementById('bulk-edit-count-badge');
+            if (badge) badge.textContent = `${selectedIds.length} Akun`;
+
+            const previewEl = document.getElementById('bulk-edit-account-preview');
+            if (previewEl) {
+                const names = selectedIds.map(id => {
+                    const acc = appData.accounts.find(a => a.account_id === id);
+                    return acc ? acc.server_code : id;
+                });
+                previewEl.textContent = names.join(', ');
+            }
+
+            const branchSel = document.getElementById('bulk-edit-branch');
+            if (branchSel) {
+                branchSel.innerHTML = '<option value="NO_CHANGE">[ Tidak Diubah ]</option>';
+                (appData.branches || []).forEach(b => {
+                    branchSel.innerHTML += `<option value="${b.branch_id}">${esc(b.branch_name)}</option>`;
+                });
+            }
+
+            document.getElementById('bulk-edit-status').value = 'NO_CHANGE';
+            const levelChk = document.getElementById('bulk-edit-level-enable');
+            levelChk.checked = false;
+            toggleBulkLevelInput(false);
+            document.getElementById('bulk-edit-level').value = 23;
+            document.getElementById('bulk-edit-autolevel').value = 'NO_CHANGE';
+            document.getElementById('bulk-edit-notes-mode').value = 'NO_CHANGE';
+            document.getElementById('bulk-edit-notes').value = '';
+            toggleBulkNotesMode('NO_CHANGE');
+
+            document.getElementById('modal-bulk-edit-accounts').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function toggleBulkLevelInput(enabled) {
+            const lvlInput = document.getElementById('bulk-edit-level');
+            if (!lvlInput) return;
+            lvlInput.disabled = !enabled;
+            if (enabled) {
+                lvlInput.classList.remove('bg-neutral-100', 'text-neutral-500');
+                lvlInput.focus();
+            } else {
+                lvlInput.classList.add('bg-neutral-100', 'text-neutral-500');
+            }
+        }
+
+        function toggleBulkNotesMode(mode) {
+            const wrap = document.getElementById('bulk-edit-notes-wrap');
+            if (!wrap) return;
+            if (mode === 'NO_CHANGE') {
+                wrap.classList.add('hidden');
+            } else {
+                wrap.classList.remove('hidden');
+                document.getElementById('bulk-edit-notes')?.focus();
+            }
+        }
+
+        function applyBulkPreset(preset) {
+            if (preset === 'ready') {
+                document.getElementById('bulk-edit-status').value = 'Ready';
+                const chk = document.getElementById('bulk-edit-level-enable');
+                chk.checked = true;
+                toggleBulkLevelInput(true);
+                document.getElementById('bulk-edit-level').value = 23;
+            } else if (preset === 'farming') {
+                document.getElementById('bulk-edit-status').value = 'Farming';
+            }
+        }
+
+        function onBulkStatusChange(status) {
+            if (status === 'Ready') {
+                const chk = document.getElementById('bulk-edit-level-enable');
+                chk.checked = true;
+                toggleBulkLevelInput(true);
+                document.getElementById('bulk-edit-level').value = 23;
+            }
+        }
+
+        function handleExecuteBulkEditAccounts(e) {
+            e.preventDefault();
+            const selectedIds = getSelectedAccountIds();
+            if (!selectedIds.length) {
+                alert('Tidak ada akun yang dipilih.');
+                closeModal('modal-bulk-edit-accounts');
+                return;
+            }
+
+            const status = document.getElementById('bulk-edit-status').value;
+            const changeLevel = document.getElementById('bulk-edit-level-enable').checked;
+            const levelVal = Number(document.getElementById('bulk-edit-level').value);
+            const branchId = document.getElementById('bulk-edit-branch').value;
+            const autoLevel = document.getElementById('bulk-edit-autolevel').value;
+            const notesMode = document.getElementById('bulk-edit-notes-mode').value;
+            const notesText = document.getElementById('bulk-edit-notes').value;
+
+            if (changeLevel && (!Number.isFinite(levelVal) || levelVal < 1)) {
+                alert('Level harus berupa angka minimal 1.');
+                return;
+            }
+
+            if (status === 'NO_CHANGE' && !changeLevel && branchId === 'NO_CHANGE' && autoLevel === 'NO_CHANGE' && notesMode === 'NO_CHANGE') {
+                alert('Silakan pilih minimal satu perubahan untuk diterapkan.');
+                return;
+            }
+
+            if (!confirm(`Terapkan perubahan ini ke ${selectedIds.length} akun yang dipilih?`)) {
+                return;
+            }
+
+            closeModal('modal-bulk-edit-accounts');
+            executeAccountsBulkUpdate({
+                status,
+                changeLevel,
+                level: levelVal,
+                branchId,
+                autoLevel,
+                notesMode,
+                notesText
+            });
+        }
+
+        function executeAccountsBulkUpdate(changes) {
+            const selectedIds = getSelectedAccountIds();
+            if (!selectedIds.length) return;
+
+            if (typeof window.showLoading === 'function') {
+                window.showLoading('Bulk Edit Akun', `Memproses ${selectedIds.length} akun...`, 50);
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const updatedAccounts = [];
+
+            selectedIds.forEach(id => {
+                const acc = appData.accounts.find(a => a.account_id === id);
+                if (!acc) return;
+                const oldVal = { ...acc };
+                let modified = false;
+
+                if (changes.status && changes.status !== 'NO_CHANGE') {
+                    const wasArchived = acc.status === 'Archived';
+                    if (changes.status === 'Archived' && !wasArchived) {
+                        acc.status_before_archive = acc.status;
+                        acc.archived_at = today;
+                    } else if (changes.status !== 'Archived' && wasArchived) {
+                        delete acc.status_before_archive;
+                        delete acc.archived_at;
+                    }
+                    acc.status = changes.status;
+                    modified = true;
+                }
+
+                if (changes.changeLevel && Number.isFinite(changes.level) && changes.level >= 1) {
+                    acc.level = Number(changes.level);
+                    modified = true;
+                }
+
+                if (changes.branchId && changes.branchId !== 'NO_CHANGE') {
+                    acc.branch_id = changes.branchId;
+                    modified = true;
+                }
+
+                if (changes.autoLevel && changes.autoLevel !== 'NO_CHANGE') {
+                    acc.auto_level_result = changes.autoLevel;
+                    modified = true;
+                }
+
+                if (changes.notesMode === 'overwrite') {
+                    acc.notes = (changes.notesText || '').trim();
+                    modified = true;
+                } else if (changes.notesMode === 'append' && (changes.notesText || '').trim()) {
+                    const extra = changes.notesText.trim();
+                    acc.notes = acc.notes ? `${acc.notes}\n${extra}` : extra;
+                    modified = true;
+                }
+
+                if (modified) {
+                    acc.updated_at = today;
+                    addLog('UPDATE_ACCOUNT', 'Account', acc.account_id, oldVal, acc);
+                    updatedAccounts.push(acc);
+                }
+            });
+
+            if (updatedAccounts.length > 0) {
+                saveData();
+                if (window.supabaseManager && typeof window.supabaseManager.onAccountsBulkUpdated === 'function') {
+                    window.supabaseManager.onAccountsBulkUpdated(updatedAccounts);
+                }
+            }
+
+            if (typeof window.hideLoading === 'function') {
+                window.hideLoading();
+            }
+
+            toast(`Berhasil memperbarui ${updatedAccounts.length} akun.`);
+            clearAccountSelection();
+            renderAccountsTable();
         }
 
         function getStatusBadgeHTML(status) {
