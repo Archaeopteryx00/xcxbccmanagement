@@ -450,8 +450,23 @@ function ensureSdkLoaded() {
             }
 
             if (window.appData) {
-                window.appData.branches = cloudData.branches || [];
-                window.appData.accounts = cloudData.accounts || [];
+                // Preserve and auto-sync any local-only branches/accounts so data is never lost on refresh
+                const cloudBranchIds = new Set((cloudData.branches || []).map(b => b.branch_id));
+                const localOnlyBranches = (window.appData.branches || []).filter(b => b && b.branch_id && !cloudBranchIds.has(b.branch_id));
+                window.appData.branches = [...(cloudData.branches || []), ...localOnlyBranches];
+                if (localOnlyBranches.length > 0) {
+                    console.log(`[SupabaseManager] Found ${localOnlyBranches.length} local-only branches. Uploading to cloud...`);
+                    localOnlyBranches.forEach(b => onBranchSaved(b, true).catch(e => console.warn('Sync auto-upload branch:', e)));
+                }
+
+                const cloudAccIds = new Set((cloudData.accounts || []).map(a => a.account_id));
+                const localOnlyAccounts = (window.appData.accounts || []).filter(a => a && a.account_id && !cloudAccIds.has(a.account_id));
+                window.appData.accounts = [...(cloudData.accounts || []), ...localOnlyAccounts];
+                if (localOnlyAccounts.length > 0) {
+                    console.log(`[SupabaseManager] Found ${localOnlyAccounts.length} local-only accounts. Uploading to cloud...`);
+                    onAccountsBulkUpdated(localOnlyAccounts).catch(e => console.warn('Sync auto-upload accounts:', e));
+                }
+
                 window.appData.updates = cloudData.updates || [];
                 window.appData.claims = (cloudData.claims || []).map(c => ({
                     ...c,
@@ -658,11 +673,12 @@ function ensureSdkLoaded() {
     // -------------------------------------------------------------------------
     // 6. Cloud Mutation Event Handlers
     // -------------------------------------------------------------------------
-    function onAccountSaved(acc, isNew) {
+    async function onAccountSaved(acc, isNew) {
         const client = getClient();
         if (!client || !currentUser || !acc) return;
         const row = {
             account_id: acc.account_id,
+            owner_id: currentUser.id,
             branch_id: acc.branch_id,
             server_code: acc.server_code,
             level: Number(acc.level || 1),
@@ -672,16 +688,20 @@ function ensureSdkLoaded() {
             auto_level_result: acc.auto_level_result || 'Untested',
             notes: acc.notes || null
         };
-        client.from('accounts').upsert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Account]', error);
-        });
+        const { error } = await client.from('accounts').upsert(row);
+        if (error) {
+            console.error('[Supabase Cloud Mutation Error: Account]', error);
+        } else {
+            console.log('[SupabaseManager] Cloud account saved:', acc.account_id);
+        }
     }
 
-    function onAccountsBulkUpdated(accounts) {
+    async function onAccountsBulkUpdated(accounts) {
         const client = getClient();
         if (!client || !currentUser || !Array.isArray(accounts) || accounts.length === 0) return;
         const rows = accounts.map(acc => ({
             account_id: acc.account_id,
+            owner_id: currentUser.id,
             branch_id: acc.branch_id,
             server_code: acc.server_code,
             level: Number(acc.level || 1),
@@ -691,64 +711,81 @@ function ensureSdkLoaded() {
             auto_level_result: acc.auto_level_result || 'Untested',
             notes: acc.notes || null
         }));
-        client.from('accounts').upsert(rows).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Bulk Accounts]', error);
-            else console.log(`[SupabaseManager] Cloud bulk updated: ${rows.length} accounts`);
-        });
+        const { error } = await client.from('accounts').upsert(rows);
+        if (error) console.error('[Supabase Cloud Mutation Error: Bulk Accounts]', error);
+        else console.log(`[SupabaseManager] Cloud bulk updated: ${rows.length} accounts`);
     }
 
-    function onAccountDeleted(accountId) {
+    async function onAccountDeleted(accountId) {
         const client = getClient();
         if (!client || !currentUser || !accountId) return;
-        client.rpc('delete_account', { p_account_id: accountId }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Delete Account]', error);
-        });
+        try {
+            const { error } = await client.rpc('delete_account', { p_account_id: accountId });
+            if (error) {
+                console.warn('[SupabaseManager] delete_account RPC failed, fallback direct delete:', error);
+                await client.from('accounts').delete().eq('account_id', accountId);
+            }
+        } catch (err) {
+            console.error('[Supabase Cloud Mutation Error: Delete Account]', err);
+        }
     }
 
-    function onAccountArchived(accountId) {
+    async function onAccountArchived(accountId) {
         const client = getClient();
         if (!client || !currentUser || !accountId) return;
-        client.rpc('archive_account', { p_account_id: accountId }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Archive Account]', error);
-        });
+        const { error } = await client.rpc('archive_account', { p_account_id: accountId });
+        if (error) console.error('[Supabase Cloud Mutation Error: Archive Account]', error);
     }
 
-    function onAccountRestored(accountId) {
+    async function onAccountRestored(accountId) {
         const client = getClient();
         if (!client || !currentUser || !accountId) return;
-        client.rpc('restore_account', { p_account_id: accountId }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Restore Account]', error);
-        });
+        const { error } = await client.rpc('restore_account', { p_account_id: accountId });
+        if (error) console.error('[Supabase Cloud Mutation Error: Restore Account]', error);
     }
 
-    function onBranchSaved(branch, isNew) {
+    async function onBranchSaved(branch, isNew) {
         const client = getClient();
         if (!client || !currentUser || !branch) return;
         const row = {
             branch_id: branch.branch_id,
+            owner_id: currentUser.id,
             branch_name: branch.branch_name,
             email_login: branch.email_login || null,
             status: branch.status || 'Active',
             notes: branch.notes || null
         };
-        client.from('branches').upsert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Branch]', error);
-        });
+        const { error } = await client.from('branches').upsert(row);
+        if (error) {
+            console.error('[Supabase Cloud Mutation Error: Branch]', error);
+            if (typeof window.toast === 'function') {
+                window.toast('Gagal sinkron cabang ke cloud: ' + (error.message || error), 'error');
+            }
+            throw error;
+        } else {
+            console.log('[SupabaseManager] Cloud branch saved:', branch.branch_id);
+        }
     }
 
-    function onBranchDeleted(branchId) {
+    async function onBranchDeleted(branchId) {
         const client = getClient();
         if (!client || !currentUser || !branchId) return;
-        client.rpc('delete_branch', { p_branch_id: branchId }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Delete Branch]', error);
-        });
+        try {
+            const { error } = await client.rpc('delete_branch', { p_branch_id: branchId });
+            if (error) {
+                console.warn('[SupabaseManager] delete_branch RPC warning, trying direct delete:', error);
+                await client.from('branches').delete().eq('branch_id', branchId);
+            }
+        } catch (err) {
+            await client.from('branches').delete().eq('branch_id', branchId);
+        }
     }
 
-    function onUpdateSaved(update, isNew) {
+    async function onUpdateSaved(update, isNew) {
         const client = getClient();
         if (!client || !currentUser || !update) return;
         if (isNew) {
-            client.rpc('create_update', {
+            const { error } = await client.rpc('create_update', {
                 p_update_id: update.update_id,
                 p_update_name: update.update_name,
                 p_start_date: update.start_date || null,
@@ -757,62 +794,57 @@ function ensureSdkLoaded() {
                 p_reward_amount: Number(update.reward_amount || 0),
                 p_eligibility_rule: update.eligibility_rule || 'all_active',
                 p_notes: update.notes || null
-            }).then(({ error }) => {
-                if (error) console.error('[Supabase Cloud Mutation Error: Create Update]', error);
             });
+            if (error) console.error('[Supabase Cloud Mutation Error: Create Update]', error);
         } else {
-            client.from('updates').update({
+            const { error } = await client.from('updates').update({
                 update_name: update.update_name,
                 start_date: update.start_date || null,
                 end_date: update.end_date || null,
                 status: update.status || 'Active',
                 notes: update.notes || null
-            }).eq('update_id', update.update_id).then(({ error }) => {
-                if (error) console.error('[Supabase Cloud Mutation Error: Update]', error);
-            });
+            }).eq('update_id', update.update_id);
+            if (error) console.error('[Supabase Cloud Mutation Error: Update]', error);
         }
     }
 
-    function onUpdateDeleted(updateId) {
+    async function onUpdateDeleted(updateId) {
         const client = getClient();
         if (!client || !currentUser || !updateId) return;
-        client.from('claims').delete().eq('update_id', updateId).then(() => {
-            client.from('updates').delete().eq('update_id', updateId).then(({ error }) => {
-                if (error) console.error('[Supabase Cloud Mutation Error: Delete Update]', error);
-            });
-        });
+        await client.from('claims').delete().eq('update_id', updateId);
+        const { error } = await client.from('updates').delete().eq('update_id', updateId);
+        if (error) console.error('[Supabase Cloud Mutation Error: Delete Update]', error);
     }
 
-    function onClaimStatusChanged(claimId, status, amount) {
+    async function onClaimStatusChanged(claimId, status, amount) {
         const client = getClient();
         if (!client || !currentUser || !claimId) return;
-        client.rpc('set_claim_status', {
+        const { error } = await client.rpc('set_claim_status', {
             p_claim_id: claimId,
             p_claim_status: status,
             p_reward_amount: Number(amount || 0),
             p_claimed_at: status === 'Claimed' ? new Date().toISOString() : null
-        }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Set Claim Status]', error);
         });
+        if (error) console.error('[Supabase Cloud Mutation Error: Set Claim Status]', error);
     }
 
-    function onBulkClaim(updateId, accountIds, amount) {
+    async function onBulkClaim(updateId, accountIds, amount) {
         const client = getClient();
         if (!client || !currentUser || !updateId) return;
-        client.rpc('bulk_claim', {
+        const { error } = await client.rpc('bulk_claim', {
             p_update_id: updateId,
             p_account_ids: accountIds,
             p_reward_amount: Number(amount || 0)
-        }).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Bulk Claim]', error);
         });
+        if (error) console.error('[Supabase Cloud Mutation Error: Bulk Claim]', error);
     }
 
-    function onSourceSaved(source) {
+    async function onSourceSaved(source) {
         const client = getClient();
         if (!client || !currentUser || !source) return;
         const row = {
             source_id: source.source_id,
+            owner_id: currentUser.id,
             account_id: source.account_id,
             source_type: source.source_type || 'DM',
             nominal: Number(source.nominal || 0),
@@ -821,16 +853,17 @@ function ensureSdkLoaded() {
             received_at: source.received_at || null,
             notes: source.notes || null
         };
-        client.from('account_sources').upsert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Account Source]', error);
-        });
+        const { error } = await client.from('account_sources').upsert(row);
+        if (error) console.error('[Supabase Cloud Mutation Error: Account Source]', error);
+        else console.log('[SupabaseManager] Cloud source saved:', source.source_id);
     }
 
-    function onTopupSaved(topup) {
+    async function onTopupSaved(topup) {
         const client = getClient();
         if (!client || !currentUser || !topup) return;
         const row = {
             topup_id: topup.topup_id,
+            owner_id: currentUser.id,
             account_id: topup.account_id,
             nominal: Number(topup.nominal || 0),
             bonus_status: topup.bonus_status || 'None',
@@ -840,28 +873,30 @@ function ensureSdkLoaded() {
             bonus_claim_date: topup.bonus_claim_date || null,
             notes: topup.notes || null
         };
-        client.from('account_topups').upsert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Account Topup]', error);
-        });
+        const { error } = await client.from('account_topups').upsert(row);
+        if (error) console.error('[Supabase Cloud Mutation Error: Account Topup]', error);
+        else console.log('[SupabaseManager] Cloud topup saved:', topup.topup_id);
     }
 
-    function onSettingsSaved(settings) {
+    async function onSettingsSaved(settings) {
         const client = getClient();
         if (!client || !currentUser || !settings) return;
         const rows = Object.entries(settings).map(([k, v]) => ({
+            owner_id: currentUser.id,
             key: k,
             value: v
         }));
-        client.from('settings').upsert(rows).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Settings]', error);
-        });
+        const { error } = await client.from('settings').upsert(rows);
+        if (error) console.error('[Supabase Cloud Mutation Error: Settings]', error);
+        else console.log('[SupabaseManager] Cloud settings saved');
     }
 
-    function onVcTransactionSaved(tx) {
+    async function onVcTransactionSaved(tx) {
         const client = getClient();
         if (!client || !currentUser || !tx) return;
         const row = {
             transaction_id: tx.transaction_id,
+            owner_id: currentUser.id,
             account_id: tx.account_id || null,
             source: tx.source || 'Manual',
             vc_earned: Number(tx.vc_earned || 0),
@@ -869,33 +904,31 @@ function ensureSdkLoaded() {
             transaction_date: tx.transaction_date || tx.date || new Date().toISOString().split('T')[0],
             description: tx.description || null
         };
-        client.from('vc_transactions').upsert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: VC Transaction]', error);
-        });
+        const { error } = await client.from('vc_transactions').upsert(row);
+        if (error) console.error('[Supabase Cloud Mutation Error: VC Transaction]', error);
     }
 
-    function onVcTransactionDeleted(txId) {
+    async function onVcTransactionDeleted(txId) {
         const client = getClient();
         if (!client || !currentUser || !txId) return;
-        client.from('vc_transactions').delete().eq('transaction_id', txId).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Delete VC Transaction]', error);
-        });
+        const { error } = await client.from('vc_transactions').delete().eq('transaction_id', txId);
+        if (error) console.error('[Supabase Cloud Mutation Error: Delete VC Transaction]', error);
     }
 
-    function onLogAdded(log) {
+    async function onLogAdded(log) {
         const client = getClient();
         if (!client || !currentUser || !log) return;
         const row = {
             log_id: log.log_id,
+            owner_id: currentUser.id,
             action: log.action,
             entity_type: log.entity_type,
             entity_id: String(log.entity_id),
             old_value: log.old_value ? (typeof log.old_value === 'object' ? log.old_value : JSON.parse(log.old_value || '{}')) : null,
             new_value: log.new_value ? (typeof log.new_value === 'object' ? log.new_value : JSON.parse(log.new_value || '{}')) : null
         };
-        client.from('activity_logs').insert(row).then(({ error }) => {
-            if (error) console.error('[Supabase Cloud Mutation Error: Log]', error);
-        });
+        const { error } = await client.from('activity_logs').insert(row);
+        if (error) console.error('[Supabase Cloud Mutation Error: Log]', error);
     }
 
     // Expose public API on window

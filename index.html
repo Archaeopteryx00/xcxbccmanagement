@@ -2738,6 +2738,9 @@
 
             saveData();
             addLog('UPDATE_DOUBLE_BONUS', 'AccountTopup', currentActiveAccountId, null, `Bonus status set to ${newStatus}`);
+            if (window.supabaseManager && typeof window.supabaseManager.onTopupSaved === 'function') {
+                window.supabaseManager.onTopupSaved(topupRec);
+            }
             toast("Status Double Bonus diperbarui.");
             renderAccountDetailTabContents(currentActiveAccountId);
             renderAccountsTable();
@@ -3946,6 +3949,9 @@
             appData.branches = appData.branches.filter(b => b.branch_id !== branchId);
             saveData();
             addLog('DELETE_BRANCH', 'Branch', branchId, branch, null);
+            if (window.supabaseManager && typeof window.supabaseManager.onBranchDeleted === 'function') {
+                window.supabaseManager.onBranchDeleted(branchId);
+            }
             toast('Cabang berhasil dihapus.');
             renderBranchesTable();
             renderAccountsTable();
@@ -4004,6 +4010,9 @@
             acc.updated_at = today;
             saveData();
             addLog('ARCHIVE_ACCOUNT', 'Account', accId, oldVal, acc);
+            if (window.supabaseManager && typeof window.supabaseManager.onAccountArchived === 'function') {
+                window.supabaseManager.onAccountArchived(accId);
+            }
             toast(`${acc.server_code} archived.`);
             afterAccountLifecycleChange();
         }
@@ -4020,6 +4029,9 @@
             acc.updated_at = new Date().toISOString().split('T')[0];
             saveData();
             addLog('RESTORE_ACCOUNT', 'Account', accId, oldVal, acc);
+            if (window.supabaseManager && typeof window.supabaseManager.onAccountRestored === 'function') {
+                window.supabaseManager.onAccountRestored(accId);
+            }
             toast(`${acc.server_code} restored (${acc.status}).`);
             afterAccountLifecycleChange();
         }
@@ -4148,6 +4160,9 @@
                 saveData();
                 addLog('DELETE_ACCOUNT', 'Account', accId, removed,
                     `Deleted ${acc.server_code}: ${removed.claims.length} claims, ${removed.account_sources.length} sources, ${removed.account_topups.length} top-ups, ${removed.vc_transactions.length} VC transactions`);
+                if (window.supabaseManager && typeof window.supabaseManager.onAccountDeleted === 'function') {
+                    window.supabaseManager.onAccountDeleted(accId);
+                }
 
                 // Clear stale UI references to the deleted account.
                 if (currentActiveAccountId === accId) currentActiveAccountId = null;
@@ -4177,6 +4192,9 @@
 
             saveData();
             addLog('DELETE_VC_TX', 'VcTransaction', txId, tx, null);
+            if (window.supabaseManager && typeof window.supabaseManager.onVcTransactionDeleted === 'function') {
+                window.supabaseManager.onVcTransactionDeleted(txId);
+            }
             toast('Transaksi VC berhasil dihapus.');
             renderVcTransactionsTable();
             if (currentTab === 'vc-management') renderVcManagementView();
@@ -4352,6 +4370,13 @@
                 changed++;
             });
             saveData();
+            if (changed > 0 && window.supabaseManager && typeof window.supabaseManager.onBulkClaim === 'function') {
+                const claimedAccountIds = selectedIds.map(id => {
+                    const c = appData.claims.find(x => x.claim_id === id);
+                    return c ? c.account_id : null;
+                }).filter(Boolean);
+                window.supabaseManager.onBulkClaim(currentSelectedUpdateId, claimedAccountIds, 0);
+            }
             if (typeof window.hideLoading === 'function') window.hideLoading();
             toast(`${changed} akun ditandai Claimed.`);
             renderClaimsTable(currentSelectedUpdateId);
@@ -4390,6 +4415,9 @@
                 appData.updates.push(newUp);
                 currentSelectedUpdateId = newUp.update_id;
                 addLog('CREATE_UPDATE_PERIOD', 'UpdatePeriod', newUp.update_id, null, newUp);
+                if (window.supabaseManager && typeof window.supabaseManager.onUpdateSaved === 'function') {
+                    window.supabaseManager.onUpdateSaved(newUp, true);
+                }
                 toast('Periode update berhasil dibuat.');
             } else {
                 const up = appData.updates.find(x => x.update_id === id);
@@ -4401,6 +4429,9 @@
                     up.status = status;
                     up.notes = notes;
                     addLog('UPDATE_PERIOD', 'UpdatePeriod', id, oldVal, up);
+                    if (window.supabaseManager && typeof window.supabaseManager.onUpdateSaved === 'function') {
+                        window.supabaseManager.onUpdateSaved(up, false);
+                    }
                     toast('Periode update berhasil diperbarui.');
                 }
             }
@@ -4425,6 +4456,9 @@
 
             saveData();
             addLog('DELETE_UPDATE_PERIOD', 'UpdatePeriod', updateId, up, null);
+            if (window.supabaseManager && typeof window.supabaseManager.onUpdateDeleted === 'function') {
+                window.supabaseManager.onUpdateDeleted(updateId);
+            }
             toast('Periode update berhasil dihapus.');
             renderClaimsSection();
         }
@@ -4473,6 +4507,9 @@
                 claim.notes = notes;
 
                 addLog('RECORD_CLAIM', 'Claim', claimId, oldVal, claim);
+                if (window.supabaseManager && typeof window.supabaseManager.onClaimStatusChanged === 'function') {
+                    window.supabaseManager.onClaimStatusChanged(claimId, status, claim.dm_claimed);
+                }
                 toast('Data klaim berhasil diperbarui.');
             }
 
@@ -4605,6 +4642,9 @@
 
             saveData();
             addLog('UPDATE_SETTINGS', 'Settings', '0', null, appData.settings);
+            if (window.supabaseManager && typeof window.supabaseManager.onSettingsSaved === 'function') {
+                window.supabaseManager.onSettingsSaved(appData.settings);
+            }
             toast('Pengaturan berhasil disimpan.');
         }
 
@@ -4706,7 +4746,7 @@
             document.getElementById('modal-branch').classList.remove('hidden');
         }
 
-        function handleSaveBranch(e) {
+        async function handleSaveBranch(e) {
             e.preventDefault();
             const form = document.getElementById('form-branch');
             if (form.dataset.saving === '1') return;
@@ -4732,6 +4772,9 @@
                     const nb = { branch_id: newId, branch_name: name, email_login: email, status, notes, created_at: today, updated_at: today };
                     appData.branches.push(nb);
                     addLog('CREATE_BRANCH', 'Branch', newId, null, nb);
+                    if (window.supabaseManager && typeof window.supabaseManager.onBranchSaved === 'function') {
+                        window.supabaseManager.onBranchSaved(nb, true).catch(err => console.error('[handleSaveBranch] Cloud sync failed:', err));
+                    }
                     toast('Cabang berhasil ditambahkan.');
                 } else {
                     const b = appData.branches.find(x => x.branch_id === id);
@@ -4743,6 +4786,9 @@
                     b.notes = notes;
                     b.updated_at = today;
                     addLog('UPDATE_BRANCH', 'Branch', id, oldVal, b);
+                    if (window.supabaseManager && typeof window.supabaseManager.onBranchSaved === 'function') {
+                        window.supabaseManager.onBranchSaved(b, false).catch(err => console.error('[handleSaveBranch] Cloud sync failed:', err));
+                    }
                     toast('Cabang berhasil diperbarui.');
                 }
 
@@ -5376,6 +5422,9 @@
             };
             appData.logs.unshift(logEntry);
             saveData();
+            if (window.supabaseManager && typeof window.supabaseManager.onLogAdded === 'function') {
+                window.supabaseManager.onLogAdded(logEntry);
+            }
         }
 
         function showLoading(title = 'Memproses...', desc = 'Mohon tunggu sebentar...', progress = 100) {
